@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KawaProyects3D | Cotizador Inteligente & Taller 3D</title>
-    <!-- Visor 3D de Google para archivos .GLB -->
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
     <style>
         :root {
@@ -33,7 +32,8 @@
             border-radius: 16px;
             padding: 24px;
         }
-        h2 { font-size: 1.2rem; margin-bottom: 16px; color: var(--accent); }
+        .full-width { grid-column: 1 / -1; }
+        h2 { font-size: 1.15rem; margin-bottom: 14px; color: var(--accent); }
         label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; margin-top: 12px; }
         input, select, textarea {
             width: 100%; padding: 10px 12px; border-radius: 8px;
@@ -49,11 +49,13 @@
         button:disabled { opacity: 0.5; cursor: not-allowed; }
         button.btn-ia { background: #2563eb; margin-top: 10px; }
         
-        model-viewer { width: 100%; height: 320px; background: rgba(0,0,0,0.35); border-radius: 12px; border: 1px solid var(--border); }
+        model-viewer { width: 100%; height: 290px; background: rgba(0,0,0,0.35); border-radius: 12px; border: 1px solid var(--border); }
         .status-ia { font-size: 0.85rem; color: #38bdf8; margin-top: 8px; min-height: 20px; }
         .precio-box { margin-top: 16px; padding: 16px; background: rgba(234, 88, 12, 0.12); border: 1px solid var(--accent); border-radius: 10px; }
         .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; background: #1e293b; margin: 4px 4px 0 0; }
         .libre { color: #4ade80; border: 1px solid #4ade80; }
+        .rastreo-grid { display: flex; gap: 10px; margin-top: 8px; }
+        .rastreo-grid button { width: auto; margin-top: 0; padding: 10px 20px; }
     </style>
 </head>
 <body>
@@ -66,6 +68,16 @@
             <a href="taller.html">Panel Taller →</a>
         </div>
     </header>
+
+    <!-- RASTREO DE PEDIDO (RF4 - SIN LOGIN OBLIGATORIO) -->
+    <div class="glass-card full-width">
+        <h2>🔍 Rastrear mi Pedido (Trazabilidad en Tiempo Real)</h2>
+        <div class="rastreo-grid">
+            <input type="number" id="buscar-orden-id" placeholder="Ingresa tu # de Orden (Ej: 1)" style="max-width: 300px;">
+            <button id="btn-buscar-orden">Consultar Estado</button>
+        </div>
+        <div id="resultado-rastreo" style="margin-top: 12px; font-size: 0.92rem; color: var(--muted);"></div>
+    </div>
 
     <!-- MÓDULO S1: COTIZADOR Y SOLICITUD -->
     <div class="glass-card">
@@ -107,9 +119,9 @@
         <button id="btn-enviar-orden">Enviar Solicitud a Taller</button>
     </div>
 
-    <!-- VISOR 3D CON IA Y ESTADO EN VIVO DEL TALLER -->
+    <!-- VISOR 3D Y DISPONIBILIDAD -->
     <div class="glass-card">
-        <h2>2. Generador IA 3D & Previsualización</h2>
+        <h2>2. Previsualización 3D & Disponibilidad</h2>
         
         <model-viewer 
             id="visor-3d"
@@ -119,13 +131,13 @@
             camera-controls>
         </model-viewer>
 
-        <label>Sube tu imagen o boceto 2D para convertir a 3D:</label>
+        <label>Sube tu imagen o boceto 2D para previsualizar en 3D:</label>
         <input type="file" id="input-imagen-ia" accept="image/png, image/jpeg, image/webp">
         
-        <button id="btn-generar-3d" class="btn-ia">✨ Generar Vista 3D con IA</button>
+        <button id="btn-generar-3d" class="btn-ia">✨ Generar Vista 3D</button>
         <div id="status-ia" class="status-ia"></div>
 
-        <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border);">
+        <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border);">
             <strong style="font-size: 0.9rem; color: var(--muted);">Impresoras en Barinas (Tiempo Real):</strong>
             <div id="lista-impresoras" style="margin-top: 8px;">Cargando máquinas...</div>
         </div>
@@ -138,7 +150,7 @@
 
     let urlModeloGenerado = null;
 
-    // 1. Verificar conexión y cargar impresoras desde PostgreSQL
+    // 1. Cargar impresoras
     async function cargarImpresoras() {
         const { data, error } = await supabase.from('impresoras_3d').select('*');
         const statusEl = document.getElementById('estado-conexion');
@@ -154,26 +166,53 @@
         ).join('');
     }
 
-    // 2. Generar modelo 3D desde imagen usando TRELLIS.2
+    // 2. Rastrear Orden (RF4)
+    document.getElementById('btn-buscar-orden').addEventListener('click', async () => {
+        const idOrden = parseInt(document.getElementById('buscar-orden-id').value);
+        const resEl = document.getElementById('resultado-rastreo');
+        if (!idOrden) return alert('Ingresa un número de orden válido.');
+
+        const { data, error } = await supabase
+            .from('ordenes_trabajo')
+            .select('*, clientes(nombre), despachos(metodo_envio, estado_logistica)')
+            .eq('id_orden', idOrden)
+            .single();
+
+        if (error || !data) {
+            resEl.innerHTML = `<span style="color:#f87171;">❌ No se encontró la Orden #${idOrden}.</span>`;
+            return;
+        }
+
+        resEl.innerHTML = `
+            <div style="padding: 12px; background: rgba(255,255,255,0.04); border-radius: 8px; color: var(--text);">
+                <strong>Orden #${data.id_orden}</strong> (${data.tipo_producto}) — Cliente: <strong>${data.clientes?.nombre}</strong><br>
+                Estado Actual: <span class="badge libre">${data.estado}</span> | Total: <strong>$${data.precio_total_usd} USD</strong>
+                ${data.despachos ? `<br>Logística: ${data.despachos.metodo_envio} (${data.despachos.estado_logistica})` : ''}
+            </div>
+        `;
+    });
+
+    // 3. Generar vista 3D (con respaldo automático si no hay tokens)
     document.getElementById('btn-generar-3d').addEventListener('click', async () => {
         const inputFile = document.getElementById('input-imagen-ia');
+        const tipo = document.getElementById('tipo-producto').value;
         const btnIA = document.getElementById('btn-generar-3d');
         const statusIA = document.getElementById('status-ia');
         const visor = document.getElementById('visor-3d');
 
         if (!inputFile.files || inputFile.files.length === 0) {
-            return alert('Selecciona primero una imagen (PNG o JPG) para generar el modelo 3D.');
+            return alert('Selecciona primero una imagen (PNG o JPG).');
         }
 
         btnIA.disabled = true;
         try {
-            const urlGLB = await generarModelo3D(inputFile.files[0], (mensaje) => {
-                statusIA.textContent = '⏳ ' + mensaje;
+            const resultado = await generarModelo3D(inputFile.files[0], tipo, (msg) => {
+                statusIA.textContent = '⏳ ' + msg;
             });
 
-            urlModeloGenerado = urlGLB;
-            visor.src = urlGLB;
-            statusIA.textContent = '✅ ¡Modelo 3D generado! Puedes rotarlo y hacer zoom arriba.';
+            urlModeloGenerado = resultado.url;
+            visor.src = resultado.url;
+            statusIA.textContent = `✅ Listo [${resultado.modo}]. Rota y acerca el modelo arriba.`;
         } catch (err) {
             statusIA.textContent = '❌ ' + err.message;
         } finally {
@@ -181,7 +220,7 @@
         }
     });
 
-    // 3. Algoritmo de cotización en vivo
+    // 4. Cotización en vivo
     function calcularCotizacion() {
         const cantidad = parseFloat(document.getElementById('cantidad-material').value) || 0;
         const horas = parseFloat(document.getElementById('horas-trabajo').value) || 0;
@@ -200,7 +239,7 @@
     document.getElementById('horas-trabajo').addEventListener('input', calcularCotizacion);
     document.getElementById('tipo-producto').addEventListener('change', calcularCotizacion);
 
-    // 4. Guardar Cliente y Orden en Supabase
+    // 5. Guardar Cliente y Orden en Supabase
     document.getElementById('btn-enviar-orden').addEventListener('click', async () => {
         const nombre = document.getElementById('cliente-nombre').value.trim();
         const telefono = document.getElementById('cliente-telefono').value.trim();
@@ -233,10 +272,9 @@
 
         if (errOrden) return alert('Error creando orden: ' + errOrden.message);
 
-        alert(`✅ ¡Orden #${orden.id_orden} registrada! Anticipo del 50%: $${(total/2).toFixed(2)} USD`);
+        alert(`✅ ¡Orden #${orden.id_orden} registrada! Guarda este número para rastrear tu pedido.\nAnticipo 50%: $${(total/2).toFixed(2)} USD`);
     });
 
-    // Inicializar
     calcularCotizacion();
     cargarImpresoras();
 </script>
