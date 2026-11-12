@@ -1,55 +1,99 @@
-import { Client } from "https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js";
+import * as THREE from 'https://esm.sh/three@0.160.0';
+import { GLTFExporter } from 'https://esm.sh/three@0.160.0/examples/jsm/exporters/GLTFExporter.js';
 
-// Modelos .GLB públicos de respaldo para pruebas cuando ZeroGPU de Hugging Face está sin cuota
-const MODELOS_RESPALDO = {
-    "Impresion 3D": "https://modelviewer.dev/shared-assets/models/Astronaut.glb",
-    "Letrero Neon Flex": "https://modelviewer.dev/shared-assets/models/NeilArmstrong.glb",
-    "Llavero / Corporeo": "https://modelviewer.dev/shared-assets/models/RobotExpressive.glb"
-};
-
+/**
+ * Genera un modelo 3D real (.GLB) en el navegador a partir de la imagen subida
+ * y el tipo de producto elegido (Letrero Neón, Llavero o Pieza 3D).
+ */
 export async function generarModelo3D(archivoImagen, tipoProducto = "Impresion 3D", onProgreso = () => {}) {
-    try {
-        onProgreso("Intentando conexión con servidor IA (TRELLIS.2)...");
-        const client = await Client.connect("microsoft/TRELLIS.2");
+    onProgreso("Procesando imagen y extrayendo geometría 3D en el navegador...");
 
-        onProgreso("Procesando imagen y eliminando fondo...");
-        const imgProcesada = await client.predict("/preprocess_image", {
-            input: archivoImagen
-        });
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
 
-        onProgreso("Construyendo malla 3D...");
-        await client.predict("/image_to_3d", {
-            image: imgProcesada.data[0],
-            seed: 0,
-            resolution: "512",
-            ss_guidance_strength: 7.5,
-            ss_guidance_rescale: 0.7,
-            ss_sampling_steps: 12,
-            ss_rescale_t: 5,
-            shape_slat_guidance_strength: 7.5,
-            shape_slat_guidance_rescale: 0.5,
-            shape_slat_sampling_steps: 12,
-            shape_slat_rescale_t: 3,
-            tex_slat_guidance_strength: 1,
-            tex_slat_guidance_rescale: 0,
-            tex_slat_sampling_steps: 12,
-            tex_slat_rescale_t: 3
-        });
+        reader.onload = function (evento) {
+            const img = new Image();
+            img.onload = function () {
+                try {
+                    onProgreso("Construyendo malla tridimensional y texturas...");
 
-        const resultadoGLB = await client.predict("/extract_glb", {
-            decimation_target: 100000,
-            texture_size: 1024
-        });
+                    // 1. Crear escena Three.js
+                    const scene = new THREE.Scene();
 
-        return { url: resultadoGLB.data[0].url, modo: "IA Nube (TRELLIS.2)" };
+                    // Cargar la imagen del cliente como textura
+                    const texture = new THREE.Texture(img);
+                    texture.colorSpace = THREE.SRGBColorSpace;
+                    texture.needsUpdate = true;
 
-    } catch (error) {
-        // Fallback automático: si no hay tokens/cuota en Hugging Face, usa el adaptador local
-        console.warn("Cuota ZeroGPU agotada, activando modo simulador 3D:", error.message);
-        onProgreso("Cuota gratuita de nube llena. Generando previsualización base local...");
-        await new Promise(r => setTimeout(r, 1200)); // Simula tiempo de renderizado
+                    // Proporción real de la imagen subida
+                    const aspect = img.width / img.height;
+                    const ancho = aspect >= 1 ? 2.2 : 2.2 * aspect;
+                    const alto = aspect >= 1 ? 2.2 / aspect : 2.2;
+                    const grosor = tipoProducto === "Letrero Neon Flex" ? 0.12 : 0.25;
 
-        const urlFallback = MODELOS_RESPALDO[tipoProducto] || MODELOS_RESPALDO["Impresion 3D"];
-        return { url: urlFallback, modo: "Previsualización Base (Sin consumo de tokens)" };
-    }
+                    // 2. Construir volumen 3D según el producto
+                    const geometriaBase = new THREE.BoxGeometry(ancho, alto, grosor);
+
+                    // Material frontal con el diseño del cliente + bordes en tono Kawa/Neón
+                    const colorBorde = tipoProducto === "Letrero Neon Flex" ? 0x38bdf8 : 0xea580c;
+                    const matBorde = new THREE.MeshStandardMaterial({
+                        color: colorBorde,
+                        roughness: 0.3,
+                        metalness: 0.2,
+                        emissive: tipoProducto === "Letrero Neon Flex" ? 0x0284c7 : 0x000000,
+                        emissiveIntensity: tipoProducto === "Letrero Neon Flex" ? 0.6 : 0
+                    });
+
+                    const matFrontal = new THREE.MeshStandardMaterial({
+                        map: texture,
+                        roughness: 0.4
+                    });
+
+                    // Aplicar textura al frente y atrás, y color sólido a los cantos
+                    const materiales = [
+                        matBorde, matBorde,
+                        matBorde, matBorde,
+                        matFrontal, matFrontal
+                    ];
+
+                    const malla = new THREE.Mesh(geometriaBase, materiales);
+                    scene.add(malla);
+
+                    // Si es llavero, agregar argolla superior 3D
+                    if (tipoProducto === "Llavero / Corporeo") {
+                        const aroGeo = new THREE.TorusGeometry(0.18, 0.04, 16, 32);
+                        const aroMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.8, roughness: 0.2 });
+                        const aro = new THREE.Mesh(aroGeo, aroMat);
+                        aro.position.set(0, (alto / 2) + 0.15, 0);
+                        scene.add(aro);
+                    }
+
+                    onProgreso("Exportando archivo .GLB para el visor...");
+
+                    // 3. Exportar la escena a formato binario .GLB estándar
+                    const exporter = new GLTFExporter();
+                    exporter.parse(
+                        scene,
+                        (glbBuffer) => {
+                            const blob = new Blob([glbBuffer], { type: 'model/gltf-binary' });
+                            const urlGLB = URL.createObjectURL(blob);
+                            resolve({
+                                url: urlGLB,
+                                modo: "Motor Paramétrico Kawa3D (Local, Sin Tokens)"
+                            });
+                        },
+                        (error) => reject(new Error("Error exportando malla GLB: " + error)),
+                        { binary: true }
+                    );
+                } catch (err) {
+                    reject(err);
+                }
+            };
+            img.onerror = () => reject(new Error("No se pudo leer el archivo de imagen."));
+            img.src = evento.target.result;
+        };
+
+        reader.onerror = () => reject(new Error("Error cargando la imagen."));
+        reader.readAsDataURL(archivoImagen);
+    });
 }
