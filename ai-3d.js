@@ -58,5 +58,3 @@ export async function generarModelo3D(archivoImagen, tipoProducto = "Impresion 3
         throw new Error("Fallo en la conexión con el servidor de IA. Verifica los parámetros o intenta de nuevo.");
     }
 }
-    });
-}
