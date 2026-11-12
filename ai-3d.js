@@ -45,7 +45,7 @@ export async function generarModelo3D(archivoImagen, tipoProducto = "Impresion 3
         // La posición [0] contiene el objeto del archivo generado.
         const archivo3D = result.data[0];
         
-        // Dependiendo de la versión de @gradio/client, la URL directa está en .url
+        // Dependiendo de la versión de @gradio/client, la URL directa está en .url o .path
         const urlGLB = archivo3D.url || archivo3D.path;
 
         return { url: urlGLB, modo: "IA Nube (Hunyuan3D)" };
