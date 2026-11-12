@@ -20,8 +20,10 @@
         .container { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
         @media (max-width: 768px) { .container { grid-template-columns: 1fr; } }
         
-        header { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+        header { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }
         h1 span { color: var(--accent); }
+        .nav-links { display: flex; gap: 16px; align-items: center; }
+        .nav-links a { color: var(--accent); text-decoration: none; font-size: 0.9rem; font-weight: 600; }
         
         .glass-card {
             background: var(--glass);
@@ -39,13 +41,16 @@
             color: var(--text); font-size: 0.95rem;
         }
         button {
-            width: 100%; margin-top: 18px; padding: 12px; border: none; border-radius: 8px;
+            width: 100%; margin-top: 16px; padding: 12px; border: none; border-radius: 8px;
             background: var(--accent); color: white; font-weight: 600; cursor: pointer;
             transition: opacity 0.2s;
         }
         button:hover { opacity: 0.9; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        button.btn-ia { background: #2563eb; margin-top: 10px; }
         
-        model-viewer { width: 100%; height: 300px; background: rgba(0,0,0,0.3); border-radius: 12px; }
+        model-viewer { width: 100%; height: 320px; background: rgba(0,0,0,0.35); border-radius: 12px; border: 1px solid var(--border); }
+        .status-ia { font-size: 0.85rem; color: #38bdf8; margin-top: 8px; min-height: 20px; }
         .precio-box { margin-top: 16px; padding: 16px; background: rgba(234, 88, 12, 0.12); border: 1px solid var(--accent); border-radius: 10px; }
         .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; background: #1e293b; margin: 4px 4px 0 0; }
         .libre { color: #4ade80; border: 1px solid #4ade80; }
@@ -56,7 +61,10 @@
 <div class="container">
     <header>
         <h1>KAWA<span>PROYECTS3D</span></h1>
-        <div id="estado-conexion" style="font-size: 0.85rem; color: var(--muted);">Conectando a Supabase...</div>
+        <div class="nav-links">
+            <span id="estado-conexion" style="font-size: 0.85rem; color: var(--muted);">Conectando a Supabase...</span>
+            <a href="taller.html">Panel Taller →</a>
+        </div>
     </header>
 
     <!-- MÓDULO S1: COTIZADOR Y SOLICITUD -->
@@ -82,8 +90,8 @@
         <label>Horas estimadas de máquina / ensamblaje</label>
         <input type="number" id="horas-trabajo" value="4" min="1">
 
-        <label>Descripción / Parámetros del Diseño</label>
-        <textarea id="parametros-ia" rows="2" placeholder="Describe tu pieza o letrero..."></textarea>
+        <label>Especificaciones (Medidas, colores, luces)</label>
+        <textarea id="parametros-ia" rows="2" placeholder="Ej: Luces azules, letras blancas, fondo negro, 40x20cm..."></textarea>
 
         <div class="precio-box">
             <div style="display:flex; justify-content:space-between;">
@@ -99,10 +107,10 @@
         <button id="btn-enviar-orden">Enviar Solicitud a Taller</button>
     </div>
 
-    <!-- VISOR 3D Y ESTADO EN VIVO DEL TALLER -->
+    <!-- VISOR 3D CON IA Y ESTADO EN VIVO DEL TALLER -->
     <div class="glass-card">
-        <h2>2. Previsualización 3D & Disponibilidad</h2>
-        <!-- Modelo 3D de muestra interactivo -->
+        <h2>2. Generador IA 3D & Previsualización</h2>
+        
         <model-viewer 
             id="visor-3d"
             src="https://modelviewer.dev/shared-assets/models/Astronaut.glb" 
@@ -111,7 +119,13 @@
             camera-controls>
         </model-viewer>
 
-        <div style="margin-top: 20px;">
+        <label>Sube tu imagen o boceto 2D para convertir a 3D:</label>
+        <input type="file" id="input-imagen-ia" accept="image/png, image/jpeg, image/webp">
+        
+        <button id="btn-generar-3d" class="btn-ia">✨ Generar Vista 3D con IA</button>
+        <div id="status-ia" class="status-ia"></div>
+
+        <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border);">
             <strong style="font-size: 0.9rem; color: var(--muted);">Impresoras en Barinas (Tiempo Real):</strong>
             <div id="lista-impresoras" style="margin-top: 8px;">Cargando máquinas...</div>
         </div>
@@ -120,6 +134,9 @@
 
 <script type="module">
     import { supabase } from './supa.js';
+    import { generarModelo3D } from './ai-3d.js';
+
+    let urlModeloGenerado = null;
 
     // 1. Verificar conexión y cargar impresoras desde PostgreSQL
     async function cargarImpresoras() {
@@ -131,19 +148,45 @@
             statusEl.textContent = '❌ Error de conexión: ' + error.message;
             return;
         }
-        statusEl.textContent = '🟢 Conectado a Supabase (PostgreSQL)';
+        statusEl.textContent = '🟢 Conectado a Supabase';
         listaEl.innerHTML = data.map(imp => 
             `<span class="badge ${imp.estado_actual === 'Libre' ? 'libre' : ''}">${imp.modelo}: ${imp.estado_actual}</span>`
         ).join('');
     }
 
-    // 2. Algoritmo de cotización en vivo
+    // 2. Generar modelo 3D desde imagen usando TRELLIS.2
+    document.getElementById('btn-generar-3d').addEventListener('click', async () => {
+        const inputFile = document.getElementById('input-imagen-ia');
+        const btnIA = document.getElementById('btn-generar-3d');
+        const statusIA = document.getElementById('status-ia');
+        const visor = document.getElementById('visor-3d');
+
+        if (!inputFile.files || inputFile.files.length === 0) {
+            return alert('Selecciona primero una imagen (PNG o JPG) para generar el modelo 3D.');
+        }
+
+        btnIA.disabled = true;
+        try {
+            const urlGLB = await generarModelo3D(inputFile.files[0], (mensaje) => {
+                statusIA.textContent = '⏳ ' + mensaje;
+            });
+
+            urlModeloGenerado = urlGLB;
+            visor.src = urlGLB;
+            statusIA.textContent = '✅ ¡Modelo 3D generado! Puedes rotarlo y hacer zoom arriba.';
+        } catch (err) {
+            statusIA.textContent = '❌ ' + err.message;
+        } finally {
+            btnIA.disabled = false;
+        }
+    });
+
+    // 3. Algoritmo de cotización en vivo
     function calcularCotizacion() {
         const cantidad = parseFloat(document.getElementById('cantidad-material').value) || 0;
         const horas = parseFloat(document.getElementById('horas-trabajo').value) || 0;
         const tipo = document.getElementById('tipo-producto').value;
 
-        // Tarifa base ejemplo: $0.05/g filamento (o $8/m neón) + $1.50/hora máquina
         const costoMaterial = tipo === 'Letrero Neon Flex' ? (cantidad * 0.15) : (cantidad * 0.05);
         const total = (costoMaterial + (horas * 1.50)).toFixed(2);
         const anticipo = (total / 2).toFixed(2);
@@ -157,7 +200,7 @@
     document.getElementById('horas-trabajo').addEventListener('input', calcularCotizacion);
     document.getElementById('tipo-producto').addEventListener('change', calcularCotizacion);
 
-    // 3. Guardar Cliente y Orden en Supabase
+    // 4. Guardar Cliente y Orden en Supabase
     document.getElementById('btn-enviar-orden').addEventListener('click', async () => {
         const nombre = document.getElementById('cliente-nombre').value.trim();
         const telefono = document.getElementById('cliente-telefono').value.trim();
@@ -167,7 +210,6 @@
 
         if (!nombre) return alert('Por favor ingresa tu nombre.');
 
-        // Insertar cliente invitado
         const { data: cliente, error: errCliente } = await supabase
             .from('clientes')
             .insert([{ nombre, telefono, es_invitado: true }])
@@ -176,20 +218,22 @@
 
         if (errCliente) return alert('Error guardando cliente: ' + errCliente.message);
 
-        // Insertar orden presupuestada
-        const { error: errOrden } = await supabase
+        const { data: orden, error: errOrden } = await supabase
             .from('ordenes_trabajo')
             .insert([{
                 id_cliente: cliente.id_cliente,
                 tipo_producto: tipo,
                 parametros_ia: parametros,
+                url_modelo_glb: urlModeloGenerado,
                 precio_total_usd: total,
                 estado: 'Presupuestada'
-            }]);
+            }])
+            .select()
+            .single();
 
         if (errOrden) return alert('Error creando orden: ' + errOrden.message);
 
-        alert('✅ ¡Solicitud registrada en Supabase! Anticipo del 50%: $' + (total/2).toFixed(2) + ' USD');
+        alert(`✅ ¡Orden #${orden.id_orden} registrada! Anticipo del 50%: $${(total/2).toFixed(2)} USD`);
     });
 
     // Inicializar
