@@ -17,7 +17,7 @@
         body { background: var(--bg); color: var(--text); padding: 24px; }
         .container { max-width: 1200px; margin: 0 auto; }
         header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
-        header a { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
+        header a { color: var(--accent); text-decoration: none; font-size: 0.9rem; font-weight: 600; }
         
         .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px; }
         .glass-card {
@@ -34,12 +34,19 @@
         }
         button { background: var(--accent); border: none; font-weight: 600; cursor: pointer; }
         button.sec { background: #334155; }
+        button:hover { opacity: 0.9; }
         
         table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
         th, td { text-align: left; padding: 12px 10px; border-bottom: 1px solid var(--border); }
         th { color: var(--muted); font-weight: 600; }
         .tag { padding: 3px 8px; border-radius: 12px; font-size: 0.78rem; background: rgba(234,88,12,0.2); color: #fb923c; }
         .alerta { color: #f87171; font-weight: bold; }
+
+        /* Modal para cierre de gastos e inventario */
+        .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); justify-content: center; align-items: center; z-index: 50; }
+        .modal-box { background: #1e293b; border: 1px solid var(--border); border-radius: 14px; padding: 24px; width: 100%; max-width: 420px; }
+        .modal-box label { display: block; font-size: 0.85rem; color: var(--muted); margin-top: 12px; margin-bottom: 4px; }
+        .modal-box input, .modal-box select { width: 100%; }
     </style>
 </head>
 <body>
@@ -50,22 +57,22 @@
         <a href="index.html">← Volver al Cotizador Público</a>
     </header>
 
-    <!-- ESTADO DE IMPRESORAS (S2) -->
+    <!-- 1. ESTADO DE IMPRESORAS (S2) -->
     <h2>1. Parque de Impresoras 3D</h2>
     <div class="grid-3" id="grid-impresoras">Cargando máquinas...</div>
 
-    <!-- INVENTARIO ACTUAL (S2) -->
+    <!-- 2. INVENTARIO ACTUAL CON ALERTAS (RF6 / RF7) -->
     <div class="glass-card" style="margin-bottom: 24px;">
-        <h2>2. Inventario de Materiales (Alertas de Stock Mínimo)</h2>
+        <h2>2. Inventario de Materiales (Descuento Automático y Alertas)</h2>
         <table>
             <thead>
-                <tr><th>Material</th><th>Color</th><th>Disponible</th><th>Stock Mínimo</th><th>Estado</th></tr>
+                <tr><th>ID</th><th>Material</th><th>Color</th><th>Disponible</th><th>Stock Mínimo</th><th>Estado</th><th>Acción</th></tr>
             </thead>
             <tbody id="tabla-inventario"></tbody>
         </table>
     </div>
 
-    <!-- ÓRDENES DE TRABAJO Y GASTOS MANUALES (S2 -> S3) -->
+    <!-- 3. ÓRDENES DE TRABAJO Y GASTOS MANUALES (S2 -> S3) -->
     <div class="glass-card">
         <h2>3. Órdenes Activas, Gastos Manuales y Despacho</h2>
         <div style="overflow-x: auto;">
@@ -75,7 +82,7 @@
                         <th>#Orden</th>
                         <th>Cliente</th>
                         <th>Servicio / Detalle</th>
-                        <th>Cobrado (USD)</th>
+                        <th>Finanzas (USD)</th>
                         <th>Estado</th>
                         <th>Acciones de Taller y Cierre</th>
                     </tr>
@@ -86,8 +93,32 @@
     </div>
 </div>
 
+<!-- MODAL DE CIERRE DE PRODUCCIÓN -->
+<div class="modal-bg" id="modal-gastos">
+    <div class="modal-box">
+        <h2>Registrar Consumo Real (Orden #<span id="modal-orden-id"></span>)</h2>
+        
+        <label>Material Principal Consumido</label>
+        <select id="select-material-usado"></select>
+
+        <label>Cantidad Consumida (Gramos o Metros)</label>
+        <input type="number" id="input-cantidad-usada" value="100" min="0" step="0.1">
+
+        <label>Otros Gastos / Electricidad / Accesorios ($ USD)</label>
+        <input type="number" id="input-otros-gastos" value="1.50" min="0" step="0.1">
+
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button id="btn-guardar-gasto" style="flex:1;">Guardar y Descontar Stock</button>
+            <button class="sec" onclick="cerrarModal()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
 <script type="module">
     import { supabase } from './supa.js';
+
+    let listaMateriales = [];
+    let ordenSeleccionadaId = null;
 
     async function cargarTodo() {
         await Promise.all([cargarImpresoras(), cargarInventario(), cargarOrdenes()]);
@@ -96,11 +127,10 @@
     // 1. Impresoras
     async function cargarImpresoras() {
         const { data } = await supabase.from('impresoras_3d').select('*').order('id_impresora');
-        const grid = document.getElementById('grid-impresoras');
-        grid.innerHTML = data.map(imp => `
+        document.getElementById('grid-impresoras').innerHTML = data.map(imp => `
             <div class="glass-card">
                 <strong>${imp.modelo}</strong>
-                <div style="margin-top:10px; display:flex; gap:8px; align-items:center;">
+                <div style="margin-top:10px;">
                     <select onchange="cambiarEstadoMaquina(${imp.id_impresora}, this.value)">
                         <option value="Libre" ${imp.estado_actual === 'Libre' ? 'selected' : ''}>🟢 Libre</option>
                         <option value="Ocupada" ${imp.estado_actual === 'Ocupada' ? 'selected' : ''}>🟠 Ocupada</option>
@@ -119,37 +149,55 @@
     // 2. Inventario
     async function cargarInventario() {
         const { data } = await supabase.from('inventario_materiales').select('*').order('id_material');
-        document.getElementById('tabla-inventario').innerHTML = data.map(m => {
+        listaMateriales = data || [];
+        
+        document.getElementById('tabla-inventario').innerHTML = listaMateriales.map(m => {
             const bajo = parseFloat(m.cantidad_actual) <= parseFloat(m.stock_minimo);
             return `<tr>
+                <td>#${m.id_material}</td>
                 <td>${m.tipo}</td>
                 <td>${m.color}</td>
-                <td>${m.cantidad_actual} ${m.unidad_medida}</td>
+                <td><strong>${m.cantidad_actual}</strong> ${m.unidad_medida}</td>
                 <td>${m.stock_minimo} ${m.unidad_medida}</td>
                 <td>${bajo ? '<span class="alerta">⚠️ Stock Bajo</span>' : '✅ Óptimo'}</td>
+                <td><button class="sec" onclick="reponerStock(${m.id_material}, ${m.cantidad_actual})">+ Reponer</button></td>
             </tr>`;
         }).join('');
+
+        // Llenar selector del modal
+        document.getElementById('select-material-usado').innerHTML = listaMateriales.map(m =>
+            `<option value="${m.id_material}">${m.tipo} - ${m.color} (Disp: ${m.cantidad_actual} ${m.unidad_medida})</option>`
+        ).join('');
     }
 
-    // 3. Órdenes + Gastos Manuales
+    window.reponerStock = async (id, actual) => {
+        const extra = parseFloat(prompt("¿Cuántos gramos o metros deseas sumar al inventario?", "1000"));
+        if (!extra || extra <= 0) return;
+        await supabase.from('inventario_materiales')
+            .update({ cantidad_actual: (parseFloat(actual) + extra).toFixed(2) })
+            .eq('id_material', id);
+        cargarInventario();
+    };
+
+    // 3. Órdenes
     async function cargarOrdenes() {
         const { data } = await supabase
             .from('ordenes_trabajo')
             .select('*, clientes(nombre, telefono), gastos_produccion(costo_total_usd)')
             .order('id_orden', { ascending: false });
 
-        document.getElementById('tabla-ordenes').innerHTML = data.map(o => {
+        document.getElementById('tabla-ordenes').innerHTML = (data || []).map(o => {
             const costoReal = o.gastos_produccion?.costo_total_usd ?? null;
             const margen = costoReal !== null ? (o.precio_total_usd - costoReal).toFixed(2) : 'Pendiente';
             return `<tr>
                 <td>#${o.id_orden}</td>
                 <td>${o.clientes?.nombre || 'Invitado'}<br><small style="color:var(--muted)">${o.clientes?.telefono || ''}</small></td>
                 <td><strong>${o.tipo_producto}</strong><br><small>${o.parametros_ia || ''}</small></td>
-                <td>$${o.precio_total_usd}<br><small style="color:#4ade80">Ganancia: $${margen}</small></td>
+                <td>Cobrado: $${o.precio_total_usd}<br><small style="color:#4ade80">Ganancia Neta: $${margen}</small></td>
                 <td><span class="tag">${o.estado}</span></td>
                 <td>
                     ${o.estado === 'Presupuestada' ? `<button onclick="aprobarOrden(${o.id_orden}, ${o.precio_total_usd})">Aprobar 50%</button>` : ''}
-                    ${o.estado === 'Aprobada' || o.estado === 'En Produccion' ? `<button onclick="cerrarProduccion(${o.id_orden})">Registrar Gasto y Terminar</button>` : ''}
+                    ${o.estado === 'Aprobada' || o.estado === 'En Produccion' ? `<button onclick="abrirModalGastos(${o.id_orden})">Registrar Gasto y Terminar</button>` : ''}
                     ${o.estado === 'Terminada' ? `<button class="sec" onclick="despacharOrden(${o.id_orden})">Despachar (S3)</button>` : ''}
                 </td>
             </tr>`;
@@ -166,19 +214,51 @@
         cargarOrdenes();
     };
 
-    window.cerrarProduccion = async (idOrden) => {
-        const gramos = parseFloat(prompt("Gramos de filamento consumidos:", "100")) || 0;
-        const neon = parseFloat(prompt("Metros de Neón Flex usados:", "0")) || 0;
-        const otros = parseFloat(prompt("Otros insumos / energía ($ USD):", "1.50")) || 0;
-        const costoTotal = ((gramos * 0.025) + (neon * 2.5) + otros).toFixed(2);
-
-        await supabase.from('gastos_produccion').insert([{
-            id_orden: idOrden, gramos_filamento: gramos, metros_neon: neon, otros_gastos_usd: otros, costo_total_usd: costoTotal
-        }]);
-        await supabase.from('ordenes_trabajo').update({ estado: 'Terminada' }).eq('id_orden', idOrden);
-        alert(`✅ Gasto registrado: $${costoTotal} USD. Orden lista para despacho.`);
-        cargarTodo();
+    // Modal de Gastos + Descuento Automático de Inventario
+    window.abrirModalGastos = (idOrden) => {
+        ordenSeleccionadaId = idOrden;
+        document.getElementById('modal-orden-id').textContent = idOrden;
+        document.getElementById('modal-gastos').style.display = 'flex';
     };
+
+    window.cerrarModal = () => {
+        document.getElementById('modal-gastos').style.display = 'none';
+    };
+
+    document.getElementById('btn-guardar-gasto').addEventListener('click', async () => {
+        const idMat = parseInt(document.getElementById('select-material-usado').value);
+        const cantUsada = parseFloat(document.getElementById('input-cantidad-usada').value) || 0;
+        const otrosUsd = parseFloat(document.getElementById('input-otros-gastos').value) || 0;
+
+        const mat = listaMateriales.find(m => m.id_material === idMat);
+        const esNeon = mat && mat.unidad_medida === 'Metros';
+        const costoMaterial = esNeon ? (cantUsada * 2.5) : (cantUsada * 0.025);
+        const costoTotal = (costoMaterial + otrosUsd).toFixed(2);
+
+        // 1. Guardar gasto en BD
+        await supabase.from('gastos_produccion').insert([{
+            id_orden: ordenSeleccionadaId,
+            gramos_filamento: esNeon ? 0 : cantUsada,
+            metros_neon: esNeon ? cantUsada : 0,
+            otros_gastos_usd: otrosUsd,
+            costo_total_usd: costoTotal
+        }]);
+
+        // 2. Descontar del inventario (RF6)
+        if (mat) {
+            const nuevoStock = Math.max(0, parseFloat(mat.cantidad_actual) - cantUsada).toFixed(2);
+            await supabase.from('inventario_materiales')
+                .update({ cantidad_actual: nuevoStock })
+                .eq('id_material', idMat);
+        }
+
+        // 3. Actualizar estado de orden
+        await supabase.from('ordenes_trabajo').update({ estado: 'Terminada' }).eq('id_orden', ordenSeleccionadaId);
+
+        cerrarModal();
+        alert(`✅ Producción cerrada. Costo real: $${costoTotal} USD y stock descontado.`);
+        cargarTodo();
+    });
 
     window.despacharOrden = async (idOrden) => {
         const via = prompt("Vía de entrega (Taller, Delivery, Nacional):", "Taller");
