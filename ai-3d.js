@@ -2,75 +2,98 @@ import * as THREE from 'https://esm.sh/three@0.160.0';
 import { GLTFExporter } from 'https://esm.sh/three@0.160.0/examples/jsm/exporters/GLTFExporter.js';
 
 /**
- * Genera un modelo 3D real (.GLB) en el navegador a partir de la imagen subida
- * y el tipo de producto elegido (Letrero Neón, Llavero o Pieza 3D).
+ * Convierte la imagen subida por el cliente en una pieza 3D real (extrusión por relieve/silueta)
+ * adaptada al tipo de servicio elegido (Letrero Neón, Llavero/Corpóreo o Pieza 3D).
  */
 export async function generarModelo3D(archivoImagen, tipoProducto = "Impresion 3D", onProgreso = () => {}) {
-    onProgreso("Procesando imagen y extrayendo geometría 3D en el navegador...");
+    onProgreso("Analizando silueta y relieve de tu imagen...");
 
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
 
-        reader.onload = function (evento) {
+        reader.onload = (evento) => {
             const img = new Image();
-            img.onload = function () {
+            img.onload = () => {
                 try {
-                    onProgreso("Construyendo malla tridimensional y texturas...");
+                    onProgreso("Extruyendo geometría 3D a partir de tu diseño...");
 
-                    // 1. Crear escena Three.js
+                    // 1. Procesar la imagen en un Canvas para obtener mapa de altura (relieve)
+                    const maxDim = 128; // Resolución de malla equilibrada para navegador
+                    const scale = Math.min(maxDim / img.width, maxDim / img.height);
+                    const w = Math.max(16, Math.round(img.width * scale));
+                    const h = Math.max(16, Math.round(img.height * scale));
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    const imgData = ctx.getImageData(0, 0, w, h).data;
+
+                    // 2. Crear escena 3D y textura original
                     const scene = new THREE.Scene();
-
-                    // Cargar la imagen del cliente como textura
                     const texture = new THREE.Texture(img);
                     texture.colorSpace = THREE.SRGBColorSpace;
                     texture.needsUpdate = true;
 
-                    // Proporción real de la imagen subida
-                    const aspect = img.width / img.height;
-                    const ancho = aspect >= 1 ? 2.2 : 2.2 * aspect;
-                    const alto = aspect >= 1 ? 2.2 / aspect : 2.2;
-                    const grosor = tipoProducto === "Letrero Neon Flex" ? 0.12 : 0.25;
+                    // Construir malla con desplazamiento real según el contraste del logo/imagen
+                    const ancho3D = 2.4;
+                    const alto3D = (h / w) * ancho3D;
+                    const geo = new THREE.PlaneGeometry(ancho3D, alto3D, w - 1, h - 1);
+                    const pos = geo.attributes.position;
 
-                    // 2. Construir volumen 3D según el producto
-                    const geometriaBase = new THREE.BoxGeometry(ancho, alto, grosor);
+                    const profundidadRelieve = tipoProducto === "Letrero Neon Flex" ? 0.18 : 0.28;
 
-                    // Material frontal con el diseño del cliente + bordes en tono Kawa/Neón
-                    const colorBorde = tipoProducto === "Letrero Neon Flex" ? 0x38bdf8 : 0xea580c;
-                    const matBorde = new THREE.MeshStandardMaterial({
-                        color: colorBorde,
-                        roughness: 0.3,
-                        metalness: 0.2,
-                        emissive: tipoProducto === "Letrero Neon Flex" ? 0x0284c7 : 0x000000,
-                        emissiveIntensity: tipoProducto === "Letrero Neon Flex" ? 0.6 : 0
-                    });
+                    for (let i = 0; i < pos.count; i++) {
+                        const px = i * 4;
+                        const r = imgData[px];
+                        const g = imgData[px + 1];
+                        const b = imgData[px + 2];
+                        const a = imgData[px + 3] / 255;
 
-                    const matFrontal = new THREE.MeshStandardMaterial({
+                        // Luminosidad del píxel para levantar el relieve del logo sobre el fondo
+                        const brillo = ((r + g + b) / (3 * 255)) * a;
+                        pos.setZ(i, brillo * profundidadRelieve);
+                    }
+                    geo.computeVertexNormals();
+
+                    // Material frontal con tu diseño + efecto emisivo si es Letrero Neón
+                    const esNeon = tipoProducto === "Letrero Neon Flex";
+                    const materialFrente = new THREE.MeshStandardMaterial({
                         map: texture,
-                        roughness: 0.4
+                        roughness: 0.35,
+                        metalness: 0.15,
+                        emissive: esNeon ? new THREE.Color(0x38bdf8) : new THREE.Color(0x000000),
+                        emissiveMap: esNeon ? texture : null,
+                        emissiveIntensity: esNeon ? 0.75 : 0
                     });
 
-                    // Aplicar textura al frente y atrás, y color sólido a los cantos
-                    const materiales = [
-                        matBorde, matBorde,
-                        matBorde, matBorde,
-                        matFrontal, matFrontal
-                    ];
+                    const mallaFrente = new THREE.Mesh(geo, materialFrente);
+                    scene.add(mallaFrente);
 
-                    const malla = new THREE.Mesh(geometriaBase, materiales);
-                    scene.add(malla);
+                    // 3. Base trasera sólida (Acrílico negro para Neón o base naranja Kawa para Corpóreos/Llaveros)
+                    const baseGeo = new THREE.BoxGeometry(ancho3D + 0.08, alto3D + 0.08, 0.08);
+                    const baseMat = new THREE.MeshStandardMaterial({
+                        color: esNeon ? 0x0f172a : 0xea580c,
+                        roughness: 0.4,
+                        metalness: 0.3
+                    });
+                    const baseMalla = new THREE.Mesh(baseGeo, baseMat);
+                    baseMalla.position.z = -0.04;
+                    scene.add(baseMalla);
 
-                    // Si es llavero, agregar argolla superior 3D
+                    // 4. Argolla metálica superior si elige "Llaveros o Letras Corpóreas"
                     if (tipoProducto === "Llavero / Corporeo") {
-                        const aroGeo = new THREE.TorusGeometry(0.18, 0.04, 16, 32);
-                        const aroMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.8, roughness: 0.2 });
+                        const aroGeo = new THREE.TorusGeometry(0.16, 0.035, 16, 32);
+                        const aroMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.85, roughness: 0.2 });
                         const aro = new THREE.Mesh(aroGeo, aroMat);
-                        aro.position.set(0, (alto / 2) + 0.15, 0);
+                        aro.position.set(0, (alto3D / 2) + 0.14, 0);
                         scene.add(aro);
                     }
 
-                    onProgreso("Exportando archivo .GLB para el visor...");
+                    onProgreso("Empaquetando archivo .GLB listo para impresión/visor...");
 
-                    // 3. Exportar la escena a formato binario .GLB estándar
+                    // 5. Exportar a .GLB binario
                     const exporter = new GLTFExporter();
                     exporter.parse(
                         scene,
@@ -79,21 +102,21 @@ export async function generarModelo3D(archivoImagen, tipoProducto = "Impresion 3
                             const urlGLB = URL.createObjectURL(blob);
                             resolve({
                                 url: urlGLB,
-                                modo: "Motor Paramétrico Kawa3D (Local, Sin Tokens)"
+                                modo: `Relieve 3D Extruido (${tipoProducto})`
                             });
                         },
-                        (error) => reject(new Error("Error exportando malla GLB: " + error)),
+                        (err) => reject(new Error("Error generando archivo 3D: " + err)),
                         { binary: true }
                     );
-                } catch (err) {
-                    reject(err);
+                } catch (error) {
+                    reject(error);
                 }
             };
-            img.onerror = () => reject(new Error("No se pudo leer el archivo de imagen."));
+            img.onerror = () => reject(new Error("No se pudo procesar la imagen."));
             img.src = evento.target.result;
         };
 
-        reader.onerror = () => reject(new Error("Error cargando la imagen."));
+        reader.onerror = () => reject(new Error("Error leyendo el archivo."));
         reader.readAsDataURL(archivoImagen);
     });
 }
