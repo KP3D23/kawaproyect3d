@@ -9,12 +9,12 @@
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
         
         :root {
-            --bg-base: #050810;
-            --accent-orange: #ea580c;
-            --accent-glow: #f97316;
-            --accent-blue: #0ea5e9;
-            --glass-bg: rgba(255, 255, 255, 0.03);
-            --glass-border: rgba(255, 255, 255, 0.08);
+            /* NUEVA PALETA BASADA EN TU LOGO */
+            --bg-base: #0a1110; /* Fondo muy oscuro con un toque de verde profundo */
+            --accent-kawa: #769789; /* El verde salvia exacto de tu logo */
+            --accent-glow: #95baaa; /* Un verde más claro para el brillo (hover) */
+            --glass-bg: rgba(255, 255, 255, 0.04);
+            --glass-border: rgba(118, 151, 137, 0.2); /* Borde tintado con tu verde */
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
         }
@@ -25,10 +25,10 @@
             background-color: var(--bg-base); 
             color: var(--text-main); 
             min-height: 100vh;
-            /* Luces de fondo estilo Neón/Boutique */
+            /* Luces de fondo adaptadas al Verde Salvia de tu logo */
             background-image: 
-                radial-gradient(circle at 15% 50%, rgba(234, 88, 12, 0.12) 0%, transparent 40%),
-                radial-gradient(circle at 85% 30%, rgba(14, 165, 233, 0.12) 0%, transparent 40%);
+                radial-gradient(circle at 15% 50%, rgba(118, 151, 137, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 85% 30%, rgba(255, 255, 255, 0.05) 0%, transparent 40%);
             background-attachment: fixed;
             padding: 30px 20px;
         }
@@ -41,12 +41,14 @@
             padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); 
         }
         
-        h1 { font-size: 1.8rem; font-weight: 700; letter-spacing: 1px; }
-        h1 span { color: var(--accent-orange); text-shadow: 0 0 15px rgba(234, 88, 12, 0.4); }
+        h1 { font-size: 1.8rem; font-weight: 700; letter-spacing: 1px; display: flex; align-items: center; gap: 10px; }
+        /* Placeholder por si quieres meter la imagen de tu logo al lado del titulo */
+        .logo-img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+        h1 span { color: var(--accent-kawa); text-shadow: 0 0 15px rgba(118, 151, 137, 0.4); }
+        
         .nav-links a { color: var(--text-muted); text-decoration: none; font-weight: 500; font-size: 0.95rem; transition: 0.3s; }
-        .nav-links a:hover { color: var(--accent-blue); }
+        .nav-links a:hover { color: var(--accent-glow); }
 
-        /* Tarjetas Glassmorphism Premium */
         .glass-card {
             background: var(--glass-bg);
             backdrop-filter: blur(20px);
@@ -59,67 +61,63 @@
             overflow: hidden;
         }
         
-        /* Brillo superior en las tarjetas */
         .glass-card::before {
             content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            background: linear-gradient(90deg, transparent, rgba(118, 151, 137, 0.4), transparent);
         }
 
         h2 { font-size: 1.3rem; font-weight: 600; margin-bottom: 25px; color: #fff; display: flex; align-items: center; gap: 10px; }
-        h2 i { color: var(--accent-orange); font-style: normal; }
+        h2 i { color: var(--accent-kawa); font-style: normal; }
 
         label { display: block; font-size: 0.85rem; color: var(--text-muted); margin: 15px 0 8px 0; font-weight: 500; }
         
         input, select, textarea {
             width: 100%; padding: 14px 16px; border-radius: 12px;
-            background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.05);
+            background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.05);
             color: var(--text-main); font-size: 0.95rem; outline: none;
             transition: all 0.3s ease;
         }
         input:focus, select:focus, textarea:focus { 
-            border-color: var(--accent-orange); 
-            background: rgba(0, 0, 0, 0.4);
-            box-shadow: 0 0 10px rgba(234, 88, 12, 0.1);
+            border-color: var(--accent-kawa); 
+            background: rgba(0, 0, 0, 0.5);
+            box-shadow: 0 0 10px rgba(118, 151, 137, 0.2);
         }
         
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 
-        /* Botón animado principal */
         .btn-primary {
             width: 100%; padding: 16px; margin-top: 25px; border: none; border-radius: 12px;
-            background: linear-gradient(135deg, var(--accent-orange), var(--accent-glow));
-            color: white; font-weight: 600; font-size: 1rem; cursor: pointer;
-            box-shadow: 0 4px 15px rgba(234, 88, 12, 0.3);
+            background: linear-gradient(135deg, var(--accent-kawa), var(--accent-glow));
+            color: #050810; font-weight: 700; font-size: 1rem; cursor: pointer;
+            box-shadow: 0 4px 15px rgba(118, 151, 137, 0.3);
             transition: all 0.3s ease;
             position: relative; overflow: hidden;
         }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(234, 88, 12, 0.4); }
-        .btn-primary.loading { background: #334155; pointer-events: none; box-shadow: none; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(118, 151, 137, 0.5); }
+        .btn-primary.loading { background: #334155; pointer-events: none; box-shadow: none; color: #fff; }
 
-        /* Caja de Precio Estilo Neumórfico Oscuro */
         .precio-box {
             margin-top: 25px; padding: 20px; border-radius: 16px;
-            background: linear-gradient(145deg, rgba(255,255,255,0.02), rgba(0,0,0,0.2));
-            border: 1px solid rgba(234, 88, 12, 0.3);
+            background: linear-gradient(145deg, rgba(255,255,255,0.02), rgba(0,0,0,0.3));
+            border: 1px solid rgba(118, 151, 137, 0.3);
             position: relative;
         }
         .precio-box .total-row { display: flex; justify-content: space-between; align-items: center; }
-        .precio-box .total { font-size: 1.8rem; font-weight: 700; color: #fff; text-shadow: 0 0 10px rgba(234,88,12,0.3); }
+        .precio-box .total { font-size: 1.8rem; font-weight: 700; color: #fff; text-shadow: 0 0 10px rgba(118, 151, 137, 0.4); }
         .precio-box .anticipo { font-size: 0.85rem; color: var(--text-muted); margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px; }
 
-        /* Contenedor Visual (Cajas de imagen y 3D) */
         .visor-box {
             width: 100%; height: 320px; border-radius: 16px;
-            background: rgba(0, 0, 0, 0.3); border: 1px dashed rgba(255, 255, 255, 0.15);
+            background: rgba(0, 0, 0, 0.4); border: 1px dashed rgba(118, 151, 137, 0.4);
             display: flex; justify-content: center; align-items: center; overflow: hidden;
             position: relative;
         }
         .visor-box img { max-width: 100%; max-height: 100%; display: none; border-radius: 12px; }
         .placeholder-text { color: var(--text-muted); font-size: 0.95rem; text-align: center; padding: 20px; }
         
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 12px; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; background: rgba(0,0,0,0.3); padding: 5px; border-radius: 12px; border: 1px solid var(--glass-border); }
         .tab-btn { flex: 1; background: transparent; border: none; color: var(--text-muted); padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 500; transition: 0.3s; }
-        .tab-btn.active { background: rgba(255,255,255,0.1); color: #fff; }
+        .tab-btn.active { background: rgba(118, 151, 137, 0.2); color: #fff; border: 1px solid rgba(118, 151, 137, 0.4); }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
     </style>
@@ -128,7 +126,11 @@
 
 <div class="container">
     <header>
-        <h1>KAWA<span>PROYECTS3D</span></h1>
+        <h1>
+            <!-- Si tienes la imagen en tu misma carpeta, descomenta esta línea -->
+            <!-- <img src="logo kawa proyects 3d.jpg" alt="Logo Kawa" class="logo-img"> -->
+            KAWA<span>PROYECTS3D</span>
+        </h1>
         <div class="nav-links">
             <a href="taller.html">Ir al Panel de Taller →</a>
         </div>
@@ -162,7 +164,7 @@
         </div>
 
         <label>Especificaciones Técnicas / Colores</label>
-        <textarea id="parametros-extra" rows="3" placeholder="Ej: Fondo acrílico negro, luces azules y blancas..."></textarea>
+        <textarea id="parametros-extra" rows="3" placeholder="Ej: Letras en acrílico blanco, contorno salvia..."></textarea>
 
         <div class="precio-box">
             <div class="total-row">
@@ -189,7 +191,6 @@
                 Sube tu logo o genera uno para previsualizarlo aquí.
             </div>
             <img id="preview-2d" alt="Tu diseño">
-            <!-- El model-viewer está oculto por ahora hasta integrar la IA -->
         </div>
 
         <div id="tab-upload" class="tab-content active">
@@ -200,7 +201,7 @@
         <div id="tab-ai" class="tab-content">
             <label style="margin-top: 20px;">Describe el diseño que imaginas:</label>
             <textarea id="prompt-ia" rows="2" placeholder="Ej: Un logo minimalista de un gato para una cafetería..."></textarea>
-            <button class="btn-primary" style="background: var(--accent-blue); padding: 12px;" disabled>Generar con IA (Próximamente)</button>
+            <button class="btn-primary" style="background: rgba(255,255,255,0.9); color: var(--bg-base); padding: 12px; margin-top: 15px;" disabled>Generar con IA (Próximamente)</button>
         </div>
         
         <hr style="border: 0; border-top: 1px solid var(--glass-border); margin: 30px 0;">
@@ -208,7 +209,7 @@
         <h2><i>🔍</i> Rastrear Pedido Activo</h2>
         <div style="display: flex; gap: 15px;">
             <input type="number" id="buscar-orden-id" placeholder="Ingresa tu # de Orden">
-            <button style="width: 120px; border-radius: 12px; background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: #fff; cursor: pointer;">Buscar</button>
+            <button style="width: 120px; border-radius: 12px; background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: #fff; cursor: pointer; transition: 0.3s;">Buscar</button>
         </div>
     </div>
 </div>
