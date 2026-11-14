@@ -3,79 +3,125 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KawaProyects3D | Estudio de Manufactura</title>
+    <title>KawaProyects3D | Estudio de Manufactura Digital</title>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        
         :root {
-            --bg-color: #0f172a;
-            --glass-bg: rgba(255, 255, 255, 0.05);
-            --glass-border: rgba(255, 255, 255, 0.1);
-            --accent: #ea580c;
-            --accent-hover: #c2410c;
+            --bg-base: #050810;
+            --accent-orange: #ea580c;
+            --accent-glow: #f97316;
+            --accent-blue: #0ea5e9;
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
         }
-        
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
-        body { background-color: var(--bg-color); color: var(--text-main); padding: 30px 20px; min-height: 100vh; }
-        
-        .container { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
-        @media (max-width: 850px) { .container { grid-template-columns: 1fr; } }
-        
-        header { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px; margin-bottom: 10px; }
-        h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: 1px; }
-        h1 span { color: var(--accent); }
-        .nav-links a { color: var(--text-muted); text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: color 0.3s; }
-        .nav-links a:hover { color: var(--accent); }
 
-        /* Efecto Glassmorphism */
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
+        
+        body { 
+            background-color: var(--bg-base); 
+            color: var(--text-main); 
+            min-height: 100vh;
+            /* Luces de fondo estilo Neón/Boutique */
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(234, 88, 12, 0.12) 0%, transparent 40%),
+                radial-gradient(circle at 85% 30%, rgba(14, 165, 233, 0.12) 0%, transparent 40%);
+            background-attachment: fixed;
+            padding: 30px 20px;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+        @media (max-width: 900px) { .container { grid-template-columns: 1fr; } }
+
+        header { 
+            grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; 
+            padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); 
+        }
+        
+        h1 { font-size: 1.8rem; font-weight: 700; letter-spacing: 1px; }
+        h1 span { color: var(--accent-orange); text-shadow: 0 0 15px rgba(234, 88, 12, 0.4); }
+        .nav-links a { color: var(--text-muted); text-decoration: none; font-weight: 500; font-size: 0.95rem; transition: 0.3s; }
+        .nav-links a:hover { color: var(--accent-blue); }
+
+        /* Tarjetas Glassmorphism Premium */
         .glass-card {
             background: var(--glass-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             border: 1px solid var(--glass-border);
-            border-radius: 16px;
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-            padding: 25px;
-            transition: transform 0.3s ease;
+            border-radius: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            padding: 35px;
+            position: relative;
+            overflow: hidden;
         }
-        .glass-card:hover { transform: translateY(-3px); }
         
-        h2 { font-size: 1.2rem; color: var(--accent); margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
-        label { display: block; font-size: 0.85rem; color: var(--text-muted); margin: 12px 0 6px 0; font-weight: 500; }
+        /* Brillo superior en las tarjetas */
+        .glass-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        }
+
+        h2 { font-size: 1.3rem; font-weight: 600; margin-bottom: 25px; color: #fff; display: flex; align-items: center; gap: 10px; }
+        h2 i { color: var(--accent-orange); font-style: normal; }
+
+        label { display: block; font-size: 0.85rem; color: var(--text-muted); margin: 15px 0 8px 0; font-weight: 500; }
         
         input, select, textarea {
-            width: 100%; padding: 12px; border-radius: 8px;
-            background: rgba(15, 23, 42, 0.6); border: 1px solid var(--glass-border);
+            width: 100%; padding: 14px 16px; border-radius: 12px;
+            background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.05);
             color: var(--text-main); font-size: 0.95rem; outline: none;
-            transition: border-color 0.3s;
+            transition: all 0.3s ease;
         }
-        input:focus, select:focus, textarea:focus { border-color: var(--accent); }
-        
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        
-        button {
-            width: 100%; padding: 14px; margin-top: 20px; border: none; border-radius: 8px;
-            background: var(--accent); color: white; font-weight: 600; font-size: 1rem; cursor: pointer;
-            transition: background 0.3s;
+        input:focus, select:focus, textarea:focus { 
+            border-color: var(--accent-orange); 
+            background: rgba(0, 0, 0, 0.4);
+            box-shadow: 0 0 10px rgba(234, 88, 12, 0.1);
         }
-        button:hover { background: var(--accent-hover); }
-        button:disabled { background: #334155; cursor: not-allowed; color: var(--text-muted); }
+        
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 
+        /* Botón animado principal */
+        .btn-primary {
+            width: 100%; padding: 16px; margin-top: 25px; border: none; border-radius: 12px;
+            background: linear-gradient(135deg, var(--accent-orange), var(--accent-glow));
+            color: white; font-weight: 600; font-size: 1rem; cursor: pointer;
+            box-shadow: 0 4px 15px rgba(234, 88, 12, 0.3);
+            transition: all 0.3s ease;
+            position: relative; overflow: hidden;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(234, 88, 12, 0.4); }
+        .btn-primary.loading { background: #334155; pointer-events: none; box-shadow: none; }
+
+        /* Caja de Precio Estilo Neumórfico Oscuro */
         .precio-box {
-            margin-top: 20px; padding: 15px; border-radius: 10px;
-            background: rgba(234, 88, 12, 0.1); border: 1px dashed var(--accent);
+            margin-top: 25px; padding: 20px; border-radius: 16px;
+            background: linear-gradient(145deg, rgba(255,255,255,0.02), rgba(0,0,0,0.2));
+            border: 1px solid rgba(234, 88, 12, 0.3);
+            position: relative;
         }
-        .precio-box .total { font-size: 1.4rem; font-weight: 700; color: #fff; }
-        .precio-box .anticipo { font-size: 0.85rem; color: var(--text-muted); margin-top: 5px; }
+        .precio-box .total-row { display: flex; justify-content: space-between; align-items: center; }
+        .precio-box .total { font-size: 1.8rem; font-weight: 700; color: #fff; text-shadow: 0 0 10px rgba(234,88,12,0.3); }
+        .precio-box .anticipo { font-size: 0.85rem; color: var(--text-muted); margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px; }
 
-        /* Visor de imágenes simulado */
+        /* Contenedor Visual (Cajas de imagen y 3D) */
         .visor-box {
-            width: 100%; height: 300px; border-radius: 12px;
-            background: rgba(0, 0, 0, 0.4); border: 1px solid var(--glass-border);
+            width: 100%; height: 320px; border-radius: 16px;
+            background: rgba(0, 0, 0, 0.3); border: 1px dashed rgba(255, 255, 255, 0.15);
             display: flex; justify-content: center; align-items: center; overflow: hidden;
+            position: relative;
         }
-        .visor-box img { max-width: 100%; max-height: 100%; display: none; }
-        .placeholder-text { color: var(--text-muted); font-size: 0.9rem; text-align: center; padding: 20px; }
+        .visor-box img { max-width: 100%; max-height: 100%; display: none; border-radius: 12px; }
+        .placeholder-text { color: var(--text-muted); font-size: 0.95rem; text-align: center; padding: 20px; }
+        
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 12px; }
+        .tab-btn { flex: 1; background: transparent; border: none; color: var(--text-muted); padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 500; transition: 0.3s; }
+        .tab-btn.active { background: rgba(255,255,255,0.1); color: #fff; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
     </style>
 </head>
 <body>
@@ -84,81 +130,89 @@
     <header>
         <h1>KAWA<span>PROYECTS3D</span></h1>
         <div class="nav-links">
-            <span id="estado-conexion" style="margin-right: 15px; color: #f87171;">🔴 Verificando conexión...</span>
             <a href="taller.html">Ir al Panel de Taller →</a>
         </div>
     </header>
 
-    <!-- Módulo 1: Cotizador -->
+    <!-- Módulo 1: Cotizador Paramétrico -->
     <div class="glass-card">
-        <h2>📋 1. Configura tu Proyecto</h2>
+        <h2><i>⚙️</i> Configura tu Proyecto</h2>
         
         <label>Nombre del Cliente</label>
         <input type="text" id="cliente-nombre" placeholder="Ej: Carlos Andrade">
         
-        <label>Teléfono de Contacto</label>
-        <input type="text" id="cliente-telefono" placeholder="Ej: 0414-0000000">
-        
         <label>Tipo de Producto</label>
         <select id="tipo-producto">
-            <option value="letrero_neon">Letrero Neón Flex</option>
+            <option value="letrero_neon">Letrero Neón Flex LED</option>
             <option value="letrero_pvc">Letrero PVC / Acrílico</option>
             <option value="letrero_3d">Letrero 3D Relieve</option>
-            <option value="llavero">Llavero Personalizado</option>
-            <option value="figura">Figura Técnica 3D</option>
+            <option value="llavero">Llaveros Personalizados</option>
+            <option value="figura">Figura Técnica / Repuesto 3D</option>
         </select>
         
         <div class="grid-2">
             <div>
-                <label>Ancho (cm)</label>
+                <label>Ancho estimado (cm)</label>
                 <input type="number" id="dim-ancho" value="30" min="1">
             </div>
             <div>
-                <label>Alto (cm)</label>
+                <label>Alto estimado (cm)</label>
                 <input type="number" id="dim-alto" value="20" min="1">
             </div>
         </div>
 
-        <label>Especificaciones / Colores</label>
-        <textarea id="parametros-extra" rows="3" placeholder="Detalles de acabado, luces, anclajes..."></textarea>
+        <label>Especificaciones Técnicas / Colores</label>
+        <textarea id="parametros-extra" rows="3" placeholder="Ej: Fondo acrílico negro, luces azules y blancas..."></textarea>
 
         <div class="precio-box">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span>Inversión Total:</span>
+            <div class="total-row">
+                <span style="font-weight: 500; color: var(--text-muted);">Inversión Total:</span>
                 <span class="total" id="precio-total">$0.00 USD</span>
             </div>
-            <div class="anticipo">Anticipo requerido (50%): <strong id="precio-anticipo">$0.00 USD</strong></div>
+            <div class="anticipo">Anticipo requerido para iniciar (50%): <strong id="precio-anticipo">$0.00 USD</strong></div>
         </div>
 
-        <button id="btn-enviar-orden">Confirmar Pedido</button>
+        <button id="btn-enviar-orden" class="btn-primary">Confirmar Pedido</button>
     </div>
 
-    <!-- Módulo 2: Previsualización (IA Desactivada temporalmente) -->
+    <!-- Módulo 2: Estudio Creativo -->
     <div class="glass-card">
-        <h2>✨ 2. Estudio Creativo</h2>
+        <h2><i>✨</i> Estudio Creativo</h2>
         
-        <div class="visor-box">
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('upload')">📂 Subir mi Diseño</button>
+            <button class="tab-btn" onclick="switchTab('ai')">🤖 Crear con IA</button>
+        </div>
+
+        <div class="visor-box" id="visor-contenedor">
             <div class="placeholder-text" id="placeholder-2d">
-                Sube tu logo para visualizar tu diseño.<br>
-                <small>(Motor IA temporalmente en pausa técnica)</small>
+                Sube tu logo o genera uno para previsualizarlo aquí.
             </div>
             <img id="preview-2d" alt="Tu diseño">
+            <!-- El model-viewer está oculto por ahora hasta integrar la IA -->
         </div>
 
-        <label style="margin-top: 20px;">Sube tu diseño (PNG, JPG):</label>
-        <input type="file" id="input-imagen-cliente" accept="image/*" style="background: transparent; padding: 10px 0; border: none;">
-
-        <hr style="border: 0; border-top: 1px solid var(--glass-border); margin: 25px 0;">
-
-        <h2>🔍 Rastrear Pedido Activo</h2>
-        <div style="display: flex; gap: 10px;">
-            <input type="number" id="buscar-orden-id" placeholder="# de Orden">
-            <button id="btn-buscar-orden" style="margin-top: 0; width: 150px; background: #2563eb;">Buscar</button>
+        <div id="tab-upload" class="tab-content active">
+            <label style="margin-top: 20px;">Selecciona tu imagen (PNG, JPG):</label>
+            <input type="file" id="input-imagen-cliente" accept="image/*" style="border: 1px dashed var(--glass-border); padding: 20px; text-align: center; cursor: pointer;">
         </div>
-        <div id="resultado-rastreo" style="margin-top: 15px; font-size: 0.9rem; color: var(--text-muted);"></div>
+
+        <div id="tab-ai" class="tab-content">
+            <label style="margin-top: 20px;">Describe el diseño que imaginas:</label>
+            <textarea id="prompt-ia" rows="2" placeholder="Ej: Un logo minimalista de un gato para una cafetería..."></textarea>
+            <button class="btn-primary" style="background: var(--accent-blue); padding: 12px;" disabled>Generar con IA (Próximamente)</button>
+        </div>
+        
+        <hr style="border: 0; border-top: 1px solid var(--glass-border); margin: 30px 0;">
+
+        <h2><i>🔍</i> Rastrear Pedido Activo</h2>
+        <div style="display: flex; gap: 15px;">
+            <input type="number" id="buscar-orden-id" placeholder="Ingresa tu # de Orden">
+            <button style="width: 120px; border-radius: 12px; background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: #fff; cursor: pointer;">Buscar</button>
+        </div>
     </div>
 </div>
 
-<script type="module" src="app.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
