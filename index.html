@@ -21,25 +21,26 @@
         .glass-card { background: var(--glass); backdrop-filter: blur(16px); border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
         .full-width { grid-column: 1 / -1; }
         h2 { font-size: 1.15rem; margin-bottom: 14px; color: var(--accent); }
-        label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; margin-top: 12px; }
+        label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; margin-top: 12px; font-weight: 500; }
         input, select, textarea { width: 100%; padding: 10px 12px; border-radius: 8px; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border); color: var(--text); font-size: 0.95rem; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         button { width: 100%; margin-top: 16px; padding: 12px; border: none; border-radius: 8px; background: var(--accent); color: white; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
         button:hover { opacity: 0.9; }
         button:disabled { opacity: 0.5; cursor: not-allowed; }
-        button.btn-ia { background: #2563eb; margin-top: 10px; }
-        button.btn-ia-3d { background: #10b981; margin-top: 10px; display: none; }
         
         .visor-container { display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px; }
-        .visor-box { width: 100%; height: 260px; background: rgba(0,0,0,0.35); border-radius: 12px; border: 1px solid var(--border); display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        .visor-box { width: 100%; height: 260px; background: rgba(0,0,0,0.35); border-radius: 12px; border: 1px solid var(--border); display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
         model-viewer { width: 100%; height: 100%; }
         #preview-2d { max-width: 100%; max-height: 100%; display: none; border-radius: 8px; }
         
-        .status-ia { font-size: 0.85rem; color: #38bdf8; margin-top: 8px; min-height: 20px; }
         .precio-box { margin-top: 16px; padding: 16px; background: rgba(234, 88, 12, 0.12); border: 1px solid var(--accent); border-radius: 10px; }
-        .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; background: #1e293b; margin: 4px 4px 0 0; }
-        .libre { color: #4ade80; border: 1px solid #4ade80; }
-        .rastreo-grid { display: flex; gap: 10px; margin-top: 8px; }
-        .rastreo-grid button { width: auto; margin-top: 0; padding: 10px 20px; }
+        
+        /* Pestañas para subir logo o crear con IA */
+        .tabs { display: flex; gap: 10px; margin-bottom: 12px; }
+        .tab-btn { background: #1e293b; color: var(--muted); padding: 8px; font-size: 0.85rem; margin-top: 0; }
+        .tab-btn.active { background: #2563eb; color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
     </style>
 </head>
 <body>
@@ -53,36 +54,35 @@
         </div>
     </header>
 
-    <!-- RASTREO DE PEDIDO -->
-    <div class="glass-card full-width">
-        <h2>🔍 Rastrear mi Pedido</h2>
-        <div class="rastreo-grid">
-            <input type="number" id="buscar-orden-id" placeholder="Ingresa tu # de Orden (Ej: 1)" style="max-width: 300px;">
-            <button id="btn-buscar-orden">Consultar Estado</button>
-        </div>
-        <div id="resultado-rastreo" style="margin-top: 12px; font-size: 0.92rem; color: var(--muted);"></div>
-    </div>
-
-    <!-- MÓDULO S1: COTIZADOR -->
+    <!-- MÓDULO S1: COTIZADOR COMERCIAL -->
     <div class="glass-card">
         <h2>1. Cotizador Paramétrico</h2>
         
-        <label>Tu Nombre o Alias (Invitado)</label>
+        <label>Nombre o Alias</label>
         <input type="text" id="cliente-nombre" placeholder="Ej: Carlos Andrade">
-        <label>Teléfono / WhatsApp</label>
-        <input type="text" id="cliente-telefono" placeholder="Ej: 0414-0000000">
-        <label>Tipo de Servicio</label>
+        
+        <label>Tipo de Proyecto</label>
         <select id="tipo-producto">
-            <option value="Impresion 3D">Impresión 3D Personalizada (PLA / PETG)</option>
-            <option value="Letrero Neon Flex">Letrero Neón Flex LED</option>
-            <option value="Llavero / Corporeo">Llaveros o Letras Corpóreas</option>
+            <option value="letrero_neon">Letrero Neón Flex</option>
+            <option value="letrero_pvc">Letrero PVC / Acrílico</option>
+            <option value="letrero_3d">Letrero 3D Relieve</option>
+            <option value="llavero">Llavero Personalizado</option>
+            <option value="figura">Figura / Pieza Técnica</option>
         </select>
-        <label>Gramos estimados o Metros de Neón</label>
-        <input type="number" id="cantidad-material" value="100" min="10">
-        <label>Horas estimadas de máquina</label>
-        <input type="number" id="horas-trabajo" value="4" min="1">
-        <label>Especificaciones técnicas (medidas, luces, anclajes)</label>
-        <textarea id="parametros-ia" rows="2" placeholder="Ej: 40x20cm, agujeros para guindar..."></textarea>
+        
+        <div class="grid-2">
+            <div>
+                <label>Ancho estimado (cm)</label>
+                <input type="number" id="dim-ancho" value="30" min="5">
+            </div>
+            <div>
+                <label>Alto estimado (cm)</label>
+                <input type="number" id="dim-alto" value="20" min="5">
+            </div>
+        </div>
+
+        <label>Especificaciones y colores</label>
+        <textarea id="parametros-extra" rows="2" placeholder="Ej: Fondo acrílico negro, luz neón azul y fucsia..."></textarea>
 
         <div class="precio-box">
             <div style="display:flex; justify-content:space-between;">
@@ -90,7 +90,7 @@
                 <strong id="precio-total" style="font-size: 1.2rem;">$0.00 USD</strong>
             </div>
             <div style="display:flex; justify-content:space-between; margin-top:6px; color: var(--muted); font-size: 0.9rem;">
-                <span>Anticipo requerido (50%):</span>
+                <span>Anticipo para iniciar (50%):</span>
                 <span id="precio-anticipo">$0.00 USD</span>
             </div>
         </div>
@@ -98,151 +98,101 @@
         <button id="btn-enviar-orden">Enviar Solicitud a Taller</button>
     </div>
 
-    <!-- VISOR 3D Y GENERADOR TEXT-TO-IMAGE-TO-3D -->
+    <!-- VISOR 3D Y ESTUDIO CREATIVO -->
     <div class="glass-card">
-        <h2>2. Estudio Creativo (Texto a 3D)</h2>
+        <h2>2. Previsualización y Estudio 3D</h2>
         
         <div class="visor-container">
             <div class="visor-box" id="caja-2d">
-                <span id="placeholder-2d" style="color:var(--muted); font-size:0.9rem;">Tu diseño 2D aparecerá aquí</span>
-                <img id="preview-2d" alt="Boceto generado">
+                <span id="placeholder-2d" style="color:var(--muted); font-size:0.9rem; text-align: center; padding: 20px;">
+                    Sube tu logo o genera uno con IA para comenzar
+                </span>
+                <img id="preview-2d" alt="Boceto cargado">
             </div>
-            
             <div class="visor-box" id="caja-3d" style="display: none;">
-                <model-viewer id="visor-3d" src="https://modelviewer.dev/shared-assets/models/Astronaut.glb" auto-rotate camera-controls></model-viewer>
+                <model-viewer id="visor-3d" src="" auto-rotate camera-controls></model-viewer>
             </div>
         </div>
 
-        <label>Describe el logo, letrero o figura que imaginas:</label>
-        <textarea id="prompt-ia" rows="2" placeholder="Ej: Un logo con la letra K en estilo cyberpunk, brillante..."></textarea>
-        
-        <button id="btn-generar-2d" class="btn-ia">🎨 1. Generar Diseño 2D</button>
-        <button id="btn-generar-3d" class="btn-ia-3d">✨ 2. Convertir a Modelo 3D</button>
-        <div id="status-ia" class="status-ia"></div>
-
-        <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border);">
-            <strong style="font-size: 0.9rem; color: var(--muted);">Impresoras (Tiempo Real):</strong>
-            <div id="lista-impresoras" style="margin-top: 8px;">Cargando máquinas...</div>
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('upload')">📂 Subir mi Logo</button>
+            <button class="tab-btn" onclick="switchTab('ai')">✨ Crear con IA</button>
         </div>
+
+        <!-- Opción 1: Subir Logo -->
+        <div id="tab-upload" class="tab-content active">
+            <label>Sube tu diseño (PNG, JPG, SVG):</label>
+            <input type="file" id="input-imagen-cliente" accept="image/*">
+        </div>
+
+        <!-- Opción 2: Crear con IA -->
+        <div id="tab-ai" class="tab-content">
+            <label>Describe el diseño que imaginas:</label>
+            <textarea id="prompt-ia" rows="2" placeholder="Ej: Logo de una cafetería moderna con un grano de café, minimalista..."></textarea>
+            <button id="btn-generar-2d" style="background: #2563eb; margin-top: 10px;">🎨 Generar Boceto 2D</button>
+        </div>
+        
+        <div id="status-ia" style="font-size: 0.85rem; color: #38bdf8; margin-top: 12px; min-height: 20px;"></div>
+        
+        <button id="btn-generar-3d" style="background: #10b981; display: none;">✨ Convertir a Modelo 3D</button>
     </div>
 </div>
 
 <script type="module">
-    import { supabase } from './supa.js';
-    import { generarImagen2D, generarModelo3D } from './ai-3d.js';
-
-    let urlModeloGenerado = null;
-    let blobImagenActual = null;
-
-    // Cargar impresoras
-    async function cargarImpresoras() {
-        const { data, error } = await supabase.from('impresoras_3d').select('*');
-        if (error) return document.getElementById('estado-conexion').textContent = '❌ Error DB';
-        document.getElementById('estado-conexion').textContent = '🟢 Conectado a Supabase';
-        document.getElementById('lista-impresoras').innerHTML = data.map(imp => 
-            `<span class="badge ${imp.estado_actual === 'Libre' ? 'libre' : ''}">${imp.modelo}: ${imp.estado_actual}</span>`
-        ).join('');
-    }
-
-    // Rastrear Orden
-    document.getElementById('btn-buscar-orden').addEventListener('click', async () => {
-        const idOrden = parseInt(document.getElementById('buscar-orden-id').value);
-        if (!idOrden) return alert('Ingresa un número de orden.');
-        const { data, error } = await supabase.from('ordenes_trabajo').select('*, clientes(nombre), despachos(metodo_envio, estado_logistica)').eq('id_orden', idOrden).single();
-        const resEl = document.getElementById('resultado-rastreo');
-        if (error || !data) return resEl.innerHTML = `<span style="color:#f87171;">❌ No se encontró la Orden #${idOrden}.</span>`;
-        resEl.innerHTML = `<div style="padding: 12px; background: rgba(255,255,255,0.04); border-radius: 8px;">
-            <strong>Orden #${data.id_orden}</strong> — Cliente: <strong>${data.clientes?.nombre}</strong><br>
-            Estado: <span class="badge libre">${data.estado}</span> | Total: <strong>$${data.precio_total_usd} USD</strong>
-            ${data.despachos ? `<br>Logística: ${data.despachos.metodo_envio} (${data.despachos.estado_logistica})` : ''}
-        </div>`;
-    });
-
-    // 1. Botón: Texto a Imagen 2D
-    document.getElementById('btn-generar-2d').addEventListener('click', async () => {
-        const prompt = document.getElementById('prompt-ia').value.trim();
-        const btn2D = document.getElementById('btn-generar-2d');
-        const statusIA = document.getElementById('status-ia');
+    // Lógica básica de UI (Cambio de pestañas y carga local de imagen)
+    window.switchTab = function(tab) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
         
-        if (!prompt) return alert('Por favor describe lo que quieres generar.');
+        if(tab === 'upload') {
+            document.querySelectorAll('.tab-btn')[0].classList.add('active');
+            document.getElementById('tab-upload').classList.add('active');
+        } else {
+            document.querySelectorAll('.tab-btn')[1].classList.add('active');
+            document.getElementById('tab-ai').classList.add('active');
+        }
+    };
 
-        btn2D.disabled = true;
-        try {
-            blobImagenActual = await generarImagen2D(prompt, (msg) => { statusIA.textContent = '⏳ ' + msg; });
-            
-            // Mostrar imagen generada
-            const urlImg = URL.createObjectURL(blobImagenActual);
-            document.getElementById('placeholder-2d').style.display = 'none';
-            const imgEl = document.getElementById('preview-2d');
-            imgEl.src = urlImg;
-            imgEl.style.display = 'block';
-            
-            document.getElementById('btn-generar-3d').style.display = 'block'; // Revelar botón 3D
-            statusIA.textContent = '✅ Diseño 2D listo. Si te gusta, conviértelo a 3D.';
-        } catch (err) {
-            statusIA.textContent = '❌ ' + err.message;
-        } finally {
-            btn2D.disabled = false;
+    // Previsualizar la imagen que el cliente sube
+    document.getElementById('input-imagen-cliente').addEventListener('change', function(e) {
+        if(e.target.files && e.target.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('placeholder-2d').style.display = 'none';
+                document.getElementById('preview-2d').src = e.target.result;
+                document.getElementById('preview-2d').style.display = 'block';
+                document.getElementById('btn-generar-3d').style.display = 'block';
+            }
+            reader.readAsDataURL(e.target.files[0]);
         }
     });
 
-    // 2. Botón: Imagen 2D a Modelo 3D
-    document.getElementById('btn-generar-3d').addEventListener('click', async () => {
-        const tipo = document.getElementById('tipo-producto').value;
-        const btn3D = document.getElementById('btn-generar-3d');
-        const statusIA = document.getElementById('status-ia');
-        
-        btn3D.disabled = true;
-        document.getElementById('caja-2d').style.display = 'none';
-        document.getElementById('caja-3d').style.display = 'flex';
-
-        try {
-            const resultado = await generarModelo3D(blobImagenActual, tipo, (msg) => { statusIA.textContent = '⏳ ' + msg; });
-            urlModeloGenerado = resultado.url;
-            document.getElementById('visor-3d').src = resultado.url;
-            statusIA.textContent = `✅ Modelo 3D generado. Puedes rotarlo arriba.`;
-        } catch (err) {
-            statusIA.textContent = '❌ ' + err.message;
-            document.getElementById('caja-3d').style.display = 'none';
-            document.getElementById('caja-2d').style.display = 'flex';
-        } finally {
-            btn3D.disabled = false;
-        }
-    });
-
-    // Cotización
+    // Simulador del Algoritmo de Precios por Dimensiones
     function calcularCotizacion() {
-        const cantidad = parseFloat(document.getElementById('cantidad-material').value) || 0;
-        const horas = parseFloat(document.getElementById('horas-trabajo').value) || 0;
+        const ancho = parseFloat(document.getElementById('dim-ancho').value) || 0;
+        const alto = parseFloat(document.getElementById('dim-alto').value) || 0;
         const tipo = document.getElementById('tipo-producto').value;
-        const total = ((tipo === 'Letrero Neon Flex' ? cantidad * 0.15 : cantidad * 0.05) + (horas * 1.50)).toFixed(2);
+        const areaCm2 = ancho * alto;
+
+        let tarifaBase = 0;
+        // Estas tarifas internas son las que tú calibrarás según tus gastos reales en el taller
+        if(tipo === 'letrero_neon') tarifaBase = 0.05; // $0.05 por cm2
+        if(tipo === 'letrero_pvc') tarifaBase = 0.03; 
+        if(tipo === 'letrero_3d') tarifaBase = 0.04; 
+        if(tipo === 'llavero') tarifaBase = 0.15; // Los llaveros suelen ser pequeños, tarifa por cm2 más alta
+        if(tipo === 'figura') tarifaBase = 0.08; 
+
+        const total = (areaCm2 * tarifaBase).toFixed(2);
+        
         document.getElementById('precio-total').textContent = `$${total} USD`;
         document.getElementById('precio-anticipo').textContent = `$${(total / 2).toFixed(2)} USD`;
-        return parseFloat(total);
     }
-    ['cantidad-material', 'horas-trabajo', 'tipo-producto'].forEach(id => document.getElementById(id).addEventListener('input', calcularCotizacion));
 
-    // Guardar Orden
-    document.getElementById('btn-enviar-orden').addEventListener('click', async () => {
-        const nombre = document.getElementById('cliente-nombre').value.trim();
-        if (!nombre) return alert('Ingresa tu nombre.');
-        const total = calcularCotizacion();
-
-        const { data: cliente } = await supabase.from('clientes').insert([{ nombre, telefono: document.getElementById('cliente-telefono').value, es_invitado: true }]).select().single();
-        const { data: orden } = await supabase.from('ordenes_trabajo').insert([{
-            id_cliente: cliente.id_cliente,
-            tipo_producto: document.getElementById('tipo-producto').value,
-            parametros_ia: document.getElementById('parametros-ia').value,
-            url_modelo_glb: urlModeloGenerado,
-            precio_total_usd: total,
-            estado: 'Presupuestada'
-        }]).select().single();
-
-        alert(`✅ Orden #${orden.id_orden} guardada. Anticipo: $${(total/2).toFixed(2)} USD`);
+    ['dim-ancho', 'dim-alto', 'tipo-producto'].forEach(id => {
+        document.getElementById(id).addEventListener('input', calcularCotizacion);
     });
 
     calcularCotizacion();
-    cargarImpresoras();
 </script>
 
 </body>
