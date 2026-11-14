@@ -3,44 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KawaProyects3D | Cotizador Inteligente</title>
-    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+    <title>KawaProyects3D | Estudio de Manufactura</title>
     <style>
         :root {
-            --bg: #0f172a; --accent: #ea580c; --glass: rgba(255, 255, 255, 0.05);
-            --border: rgba(255, 255, 255, 0.1); --text: #f8fafc; --muted: #94a3b8;
+            --bg-color: #0f172a;
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --accent: #ea580c;
+            --accent-hover: #c2410c;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
         }
+        
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
-        body { background: var(--bg); color: var(--text); padding: 24px; min-height: 100vh; }
-        .container { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-        @media (max-width: 768px) { .container { grid-template-columns: 1fr; } }
-        header { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }
+        body { background-color: var(--bg-color); color: var(--text-main); padding: 30px 20px; min-height: 100vh; }
+        
+        .container { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+        @media (max-width: 850px) { .container { grid-template-columns: 1fr; } }
+        
+        header { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px; margin-bottom: 10px; }
+        h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: 1px; }
         h1 span { color: var(--accent); }
-        .nav-links { display: flex; gap: 16px; align-items: center; }
-        .nav-links a { color: var(--accent); text-decoration: none; font-size: 0.9rem; font-weight: 600; }
-        .glass-card { background: var(--glass); backdrop-filter: blur(16px); border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
-        .full-width { grid-column: 1 / -1; }
-        h2 { font-size: 1.15rem; margin-bottom: 14px; color: var(--accent); }
-        label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; margin-top: 12px; font-weight: 500; }
-        input, select, textarea { width: 100%; padding: 10px 12px; border-radius: 8px; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border); color: var(--text); font-size: 0.95rem; }
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        button { width: 100%; margin-top: 16px; padding: 12px; border: none; border-radius: 8px; background: var(--accent); color: white; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
-        button:hover { opacity: 0.9; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .nav-links a { color: var(--text-muted); text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: color 0.3s; }
+        .nav-links a:hover { color: var(--accent); }
+
+        /* Efecto Glassmorphism */
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+            transition: transform 0.3s ease;
+        }
+        .glass-card:hover { transform: translateY(-3px); }
         
-        .visor-container { display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px; }
-        .visor-box { width: 100%; height: 260px; background: rgba(0,0,0,0.35); border-radius: 12px; border: 1px solid var(--border); display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
-        model-viewer { width: 100%; height: 100%; }
-        #preview-2d { max-width: 100%; max-height: 100%; display: none; border-radius: 8px; }
+        h2 { font-size: 1.2rem; color: var(--accent); margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        label { display: block; font-size: 0.85rem; color: var(--text-muted); margin: 12px 0 6px 0; font-weight: 500; }
         
-        .precio-box { margin-top: 16px; padding: 16px; background: rgba(234, 88, 12, 0.12); border: 1px solid var(--accent); border-radius: 10px; }
+        input, select, textarea {
+            width: 100%; padding: 12px; border-radius: 8px;
+            background: rgba(15, 23, 42, 0.6); border: 1px solid var(--glass-border);
+            color: var(--text-main); font-size: 0.95rem; outline: none;
+            transition: border-color 0.3s;
+        }
+        input:focus, select:focus, textarea:focus { border-color: var(--accent); }
         
-        /* Pestañas para subir logo o crear con IA */
-        .tabs { display: flex; gap: 10px; margin-bottom: 12px; }
-        .tab-btn { background: #1e293b; color: var(--muted); padding: 8px; font-size: 0.85rem; margin-top: 0; }
-        .tab-btn.active { background: #2563eb; color: white; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        
+        button {
+            width: 100%; padding: 14px; margin-top: 20px; border: none; border-radius: 8px;
+            background: var(--accent); color: white; font-weight: 600; font-size: 1rem; cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover { background: var(--accent-hover); }
+        button:disabled { background: #334155; cursor: not-allowed; color: var(--text-muted); }
+
+        .precio-box {
+            margin-top: 20px; padding: 15px; border-radius: 10px;
+            background: rgba(234, 88, 12, 0.1); border: 1px dashed var(--accent);
+        }
+        .precio-box .total { font-size: 1.4rem; font-weight: 700; color: #fff; }
+        .precio-box .anticipo { font-size: 0.85rem; color: var(--text-muted); margin-top: 5px; }
+
+        /* Visor de imágenes simulado */
+        .visor-box {
+            width: 100%; height: 300px; border-radius: 12px;
+            background: rgba(0, 0, 0, 0.4); border: 1px solid var(--glass-border);
+            display: flex; justify-content: center; align-items: center; overflow: hidden;
+        }
+        .visor-box img { max-width: 100%; max-height: 100%; display: none; }
+        .placeholder-text { color: var(--text-muted); font-size: 0.9rem; text-align: center; padding: 20px; }
     </style>
 </head>
 <body>
@@ -49,151 +84,81 @@
     <header>
         <h1>KAWA<span>PROYECTS3D</span></h1>
         <div class="nav-links">
-            <span id="estado-conexion" style="font-size: 0.85rem; color: var(--muted);">Conectando a Supabase...</span>
-            <a href="taller.html">Panel Taller →</a>
+            <span id="estado-conexion" style="margin-right: 15px; color: #f87171;">🔴 Verificando conexión...</span>
+            <a href="taller.html">Ir al Panel de Taller →</a>
         </div>
     </header>
 
-    <!-- MÓDULO S1: COTIZADOR COMERCIAL -->
+    <!-- Módulo 1: Cotizador -->
     <div class="glass-card">
-        <h2>1. Cotizador Paramétrico</h2>
+        <h2>📋 1. Configura tu Proyecto</h2>
         
-        <label>Nombre o Alias</label>
+        <label>Nombre del Cliente</label>
         <input type="text" id="cliente-nombre" placeholder="Ej: Carlos Andrade">
         
-        <label>Tipo de Proyecto</label>
+        <label>Teléfono de Contacto</label>
+        <input type="text" id="cliente-telefono" placeholder="Ej: 0414-0000000">
+        
+        <label>Tipo de Producto</label>
         <select id="tipo-producto">
             <option value="letrero_neon">Letrero Neón Flex</option>
             <option value="letrero_pvc">Letrero PVC / Acrílico</option>
             <option value="letrero_3d">Letrero 3D Relieve</option>
             <option value="llavero">Llavero Personalizado</option>
-            <option value="figura">Figura / Pieza Técnica</option>
+            <option value="figura">Figura Técnica 3D</option>
         </select>
         
         <div class="grid-2">
             <div>
-                <label>Ancho estimado (cm)</label>
-                <input type="number" id="dim-ancho" value="30" min="5">
+                <label>Ancho (cm)</label>
+                <input type="number" id="dim-ancho" value="30" min="1">
             </div>
             <div>
-                <label>Alto estimado (cm)</label>
-                <input type="number" id="dim-alto" value="20" min="5">
+                <label>Alto (cm)</label>
+                <input type="number" id="dim-alto" value="20" min="1">
             </div>
         </div>
 
-        <label>Especificaciones y colores</label>
-        <textarea id="parametros-extra" rows="2" placeholder="Ej: Fondo acrílico negro, luz neón azul y fucsia..."></textarea>
+        <label>Especificaciones / Colores</label>
+        <textarea id="parametros-extra" rows="3" placeholder="Detalles de acabado, luces, anclajes..."></textarea>
 
         <div class="precio-box">
-            <div style="display:flex; justify-content:space-between;">
-                <span>Total Estimado:</span>
-                <strong id="precio-total" style="font-size: 1.2rem;">$0.00 USD</strong>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span>Inversión Total:</span>
+                <span class="total" id="precio-total">$0.00 USD</span>
             </div>
-            <div style="display:flex; justify-content:space-between; margin-top:6px; color: var(--muted); font-size: 0.9rem;">
-                <span>Anticipo para iniciar (50%):</span>
-                <span id="precio-anticipo">$0.00 USD</span>
-            </div>
+            <div class="anticipo">Anticipo requerido (50%): <strong id="precio-anticipo">$0.00 USD</strong></div>
         </div>
 
-        <button id="btn-enviar-orden">Enviar Solicitud a Taller</button>
+        <button id="btn-enviar-orden">Confirmar Pedido</button>
     </div>
 
-    <!-- VISOR 3D Y ESTUDIO CREATIVO -->
+    <!-- Módulo 2: Previsualización (IA Desactivada temporalmente) -->
     <div class="glass-card">
-        <h2>2. Previsualización y Estudio 3D</h2>
+        <h2>✨ 2. Estudio Creativo</h2>
         
-        <div class="visor-container">
-            <div class="visor-box" id="caja-2d">
-                <span id="placeholder-2d" style="color:var(--muted); font-size:0.9rem; text-align: center; padding: 20px;">
-                    Sube tu logo o genera uno con IA para comenzar
-                </span>
-                <img id="preview-2d" alt="Boceto cargado">
+        <div class="visor-box">
+            <div class="placeholder-text" id="placeholder-2d">
+                Sube tu logo para visualizar tu diseño.<br>
+                <small>(Motor IA temporalmente en pausa técnica)</small>
             </div>
-            <div class="visor-box" id="caja-3d" style="display: none;">
-                <model-viewer id="visor-3d" src="" auto-rotate camera-controls></model-viewer>
-            </div>
+            <img id="preview-2d" alt="Tu diseño">
         </div>
 
-        <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('upload')">📂 Subir mi Logo</button>
-            <button class="tab-btn" onclick="switchTab('ai')">✨ Crear con IA</button>
-        </div>
+        <label style="margin-top: 20px;">Sube tu diseño (PNG, JPG):</label>
+        <input type="file" id="input-imagen-cliente" accept="image/*" style="background: transparent; padding: 10px 0; border: none;">
 
-        <!-- Opción 1: Subir Logo -->
-        <div id="tab-upload" class="tab-content active">
-            <label>Sube tu diseño (PNG, JPG, SVG):</label>
-            <input type="file" id="input-imagen-cliente" accept="image/*">
-        </div>
+        <hr style="border: 0; border-top: 1px solid var(--glass-border); margin: 25px 0;">
 
-        <!-- Opción 2: Crear con IA -->
-        <div id="tab-ai" class="tab-content">
-            <label>Describe el diseño que imaginas:</label>
-            <textarea id="prompt-ia" rows="2" placeholder="Ej: Logo de una cafetería moderna con un grano de café, minimalista..."></textarea>
-            <button id="btn-generar-2d" style="background: #2563eb; margin-top: 10px;">🎨 Generar Boceto 2D</button>
+        <h2>🔍 Rastrear Pedido Activo</h2>
+        <div style="display: flex; gap: 10px;">
+            <input type="number" id="buscar-orden-id" placeholder="# de Orden">
+            <button id="btn-buscar-orden" style="margin-top: 0; width: 150px; background: #2563eb;">Buscar</button>
         </div>
-        
-        <div id="status-ia" style="font-size: 0.85rem; color: #38bdf8; margin-top: 12px; min-height: 20px;"></div>
-        
-        <button id="btn-generar-3d" style="background: #10b981; display: none;">✨ Convertir a Modelo 3D</button>
+        <div id="resultado-rastreo" style="margin-top: 15px; font-size: 0.9rem; color: var(--text-muted);"></div>
     </div>
 </div>
 
-<script type="module">
-    // Lógica básica de UI (Cambio de pestañas y carga local de imagen)
-    window.switchTab = function(tab) {
-        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-        
-        if(tab === 'upload') {
-            document.querySelectorAll('.tab-btn')[0].classList.add('active');
-            document.getElementById('tab-upload').classList.add('active');
-        } else {
-            document.querySelectorAll('.tab-btn')[1].classList.add('active');
-            document.getElementById('tab-ai').classList.add('active');
-        }
-    };
-
-    // Previsualizar la imagen que el cliente sube
-    document.getElementById('input-imagen-cliente').addEventListener('change', function(e) {
-        if(e.target.files && e.target.files[0]) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                document.getElementById('placeholder-2d').style.display = 'none';
-                document.getElementById('preview-2d').src = e.target.result;
-                document.getElementById('preview-2d').style.display = 'block';
-                document.getElementById('btn-generar-3d').style.display = 'block';
-            }
-            reader.readAsDataURL(e.target.files[0]);
-        }
-    });
-
-    // Simulador del Algoritmo de Precios por Dimensiones
-    function calcularCotizacion() {
-        const ancho = parseFloat(document.getElementById('dim-ancho').value) || 0;
-        const alto = parseFloat(document.getElementById('dim-alto').value) || 0;
-        const tipo = document.getElementById('tipo-producto').value;
-        const areaCm2 = ancho * alto;
-
-        let tarifaBase = 0;
-        // Estas tarifas internas son las que tú calibrarás según tus gastos reales en el taller
-        if(tipo === 'letrero_neon') tarifaBase = 0.05; // $0.05 por cm2
-        if(tipo === 'letrero_pvc') tarifaBase = 0.03; 
-        if(tipo === 'letrero_3d') tarifaBase = 0.04; 
-        if(tipo === 'llavero') tarifaBase = 0.15; // Los llaveros suelen ser pequeños, tarifa por cm2 más alta
-        if(tipo === 'figura') tarifaBase = 0.08; 
-
-        const total = (areaCm2 * tarifaBase).toFixed(2);
-        
-        document.getElementById('precio-total').textContent = `$${total} USD`;
-        document.getElementById('precio-anticipo').textContent = `$${(total / 2).toFixed(2)} USD`;
-    }
-
-    ['dim-ancho', 'dim-alto', 'tipo-producto'].forEach(id => {
-        document.getElementById(id).addEventListener('input', calcularCotizacion);
-    });
-
-    calcularCotizacion();
-</script>
-
+<script type="module" src="app.js"></script>
 </body>
 </html>
