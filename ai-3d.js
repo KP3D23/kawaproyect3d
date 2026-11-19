@@ -2,7 +2,7 @@ import { Client } from "https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.m
 import { supabase } from './supa.js';
 
 /**
- * Función auxiliar para obtener llaves desde Supabase
+ * Obtiene tokens de API almacenados de forma segura en Supabase
  */
 async function obtenerToken(nombreServicio) {
     const { data: config, error } = await supabase
@@ -18,23 +18,82 @@ async function obtenerToken(nombreServicio) {
 }
 
 /**
- * 1. Consultar a Gemini 2.5 Flash (Asesor comercial / Bot)
+ * Convierte un File o Blob a Base64 puro para enviarlo a Gemini
  */
-export async function consultarGemini(mensajeUsuario, instruccionesPersonalizadas = null) {
-    try {
-        const apiKey = await obtenerToken('gemini_api');
-        const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+function blobABase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const base64Data = reader.result.split(',')[1];
+            resolve({
+                mimeType: blob.type || 'image/png',
+                data: base64Data
+            });
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
 
-        const instruccionesTaller = instruccionesPersonalizadas || `
-            Eres el asistente comercial de KawaProyects3D en Barinas, Venezuela.
-            Productos que fabricamos:
-            - Letreros Neón Flex LED (base impresa en 3D con canaletas, no acrílico sólido).
-            - Letreros PVC con vinil adhesivo e iluminación indirecta (efecto halo).
-            - Letras 3D en relieve (PLA/PETG).
-            - Reconocimientos y trofeos (100% 3D o extruidos 2D).
-            - Llaveros personalizados en relieve ($3 al detal, $2.20 por docena, 4-5 cm estándar).
-            Reglas: Se requiere 50% de anticipo para iniciar producción. Sé amable, claro y conciso.
-        `;
+/**
+ * Convierte la respuesta Base64 de Gemini de vuelta a un Blob utilizable por <img> y Hunyuan3D
+ */
+function base64ABlob(base64, mimeType = 'image/png') {
+    const byteCharacters = atob(base64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    return new Blob([byteArray], { type: mimeType });
+}
+
+/**
+ * 1. Pule y traduce el prompt del cliente usando Gemini 2.5 Flash (Texto)
+ */
+export async function optimizarPromptConGemini(promptCliente, tipoProducto, contextoTaller) {
+    const apiKey = await obtenerToken('gemini_api');
+    const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+
+    const instrucciones = `
+        You are an expert prompt engineer for 3D product mockup generation.
+        Combine the workshop manufacturing style with the customer's request into a single, clear, detailed English prompt.
+        Keep any exact text the customer wants written on the sign/product in quotes and in its original language (Spanish).
+        Always enforce: isolated object, centered, front-facing 3/4 slight angle, clean solid pure white background (#FFFFFF), studio product photography, sharp edges, no hands, no walls, no clutter (ideal for Image-to-3D conversion).
+        Return ONLY the final English prompt, with no explanations or markdown.
+    `;
+
+    const mensaje = `Product type: ${tipoProducto}. Workshop manufacturing style: ${contextoTaller}. Customer request: "${promptCliente}"`;
+
+    const respuesta = await fetch(url, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey
+        },
+        body: JSON.stringify({
+            system_instruction: { parts: [{ text: instrucciones }] },
+            contents: [{ parts: [{ text: mensaje }] }]
+        })
+    });
+
+    if (!respuesta.ok) {
+        const errData = await respuesta.json().catch(() => ({}));
+        throw new Error(errData.error?.message || `Error optimizando prompt (${respuesta.status})`);
+    }
+
+    const data = await respuesta.json();
+    return data.candidates[0].content.parts[0].text.trim();
+}
+
+/**
+ * 2. TEXTO A IMAGEN: Genera un render 2D preparado para 3D usando Gemini 2.5 Flash Image
+ */
+export async function generarImagen2D(promptOptimizado, onProgreso = () => {}) {
+    try {
+        onProgreso("Conectando con Gemini para generar boceto 2D...");
+        const apiKey = await obtenerToken('gemini_api');
+        const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent";
 
         const respuesta = await fetch(url, {
             method: "POST",
@@ -43,12 +102,12 @@ export async function consultarGemini(mensajeUsuario, instruccionesPersonalizada
                 "x-goog-api-key": apiKey
             },
             body: JSON.stringify({
-                system_instruction: {
-                    parts: [{ text: instruccionesTaller }]
-                },
                 contents: [{
-                    parts: [{ text: mensajeUsuario }]
-                }]
+                    parts: [{ text: promptOptimizado }]
+                }],
+                generationConfig: {
+                    responseModalities: ["IMAGE"]
+                }
             })
         });
 
@@ -58,66 +117,84 @@ export async function consultarGemini(mensajeUsuario, instruccionesPersonalizada
         }
 
         const data = await respuesta.json();
-        return data.candidates[0].content.parts[0].text;
+        const parteImagen = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
 
-    } catch (error) {
-        console.error("Error en Gemini API:", error);
-        throw new Error("No se pudo conectar con Gemini: " + error.message);
-    }
-}
-
-/**
- * 2. Usar Gemini para mejorar y traducir el prompt del cliente antes de enviarlo a FLUX.1
- */
-export async function optimizarPromptConGemini(promptCliente, tipoProducto, contextoTaller) {
-    const instrucciones = `
-        You are an expert prompt engineer for FLUX.1 image generation.
-        Combine the workshop manufacturing style with the customer's request into a single, clear, detailed English prompt.
-        Keep any exact text the customer wants written on the sign in quotes and in its original language.
-        Always enforce: isolated object, centered, clean solid white background, studio product photography.
-        Return ONLY the final English prompt, with no explanations or extra text.
-    `;
-
-    const mensaje = `Product type: ${tipoProducto}. Workshop style: ${contextoTaller}. Customer request: "${promptCliente}"`;
-    return await consultarGemini(mensaje, instrucciones);
-}
-
-/**
- * 3. Genera una imagen 2D a partir del texto usando FLUX.1
- */
-export async function generarImagen2D(promptTexto, onProgreso = () => {}) {
-    try {
-        onProgreso("Consultando credenciales seguras...");
-        const hfToken = await obtenerToken('huggingface_trellis');
-
-        onProgreso("Generando boceto 2D con Inteligencia Artificial...");
-        
-        const respuesta = await fetch(
-            "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell",
-            {
-                headers: {
-                    Authorization: `Bearer ${hfToken}`,
-                    "Content-Type": "application/json",
-                },
-                method: "POST",
-                body: JSON.stringify({ inputs: promptTexto }),
-            }
-        );
-
-        if (!respuesta.ok) {
-            throw new Error("El servidor de imágenes está saturado. Intenta de nuevo.");
+        if (!parteImagen) {
+            throw new Error("Gemini no devolvió una imagen. Intenta describir el diseño de otra forma.");
         }
 
-        return await respuesta.blob();
+        return base64ABlob(parteImagen.inlineData.data, parteImagen.inlineData.mimeType);
 
     } catch (error) {
-        console.error("Error en Text-to-Image:", error);
-        throw new Error("No se pudo generar la imagen: " + error.message);
+        console.error("Error en Text-to-Image (Gemini):", error);
+        throw new Error("No se pudo generar la imagen 2D: " + error.message);
     }
 }
 
 /**
- * 4. Genera el modelo 3D usando Hunyuan3D-2.1 a partir del Blob 2D
+ * 3. IMAGEN A IMAGEN PREPARADA: Toma el logo/foto del cliente y lo adapta al producto físico sobre fondo blanco
+ */
+export async function prepararImagenPara3D(archivoBlob, tipoProducto, contextoTaller, promptExtra = "", onProgreso = () => {}) {
+    try {
+        onProgreso("Analizando tu imagen y adaptándola al formato de taller con Gemini...");
+        const apiKey = await obtenerToken('gemini_api');
+        const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent";
+
+        const imagenBase64 = await blobABase64(archivoBlob);
+
+        const instruccionEdicion = `
+            Transform the provided logo/image into a realistic physical manufactured product ready for 3D reconstruction.
+            Preserve the exact text, shapes, and brand identity from the original image.
+            Product type: ${tipoProducto}.
+            Manufacturing style: ${contextoTaller}
+            ${promptExtra ? `Additional customer instructions: "${promptExtra}".` : ""}
+            CRITICAL RULES FOR 3D CONVERSION:
+            - Place the finished product completely isolated and centered on a clean, solid pure white background (#FFFFFF).
+            - Remove any original background, tables, hands, or clutter.
+            - Give it clear physical thickness, clean edges, and studio lighting so a 3D AI model can accurately extrude its geometry.
+        `;
+
+        const respuesta = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "x-goog-api-key": apiKey
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [
+                        { text: instruccionEdicion },
+                        { inlineData: { mimeType: imagenBase64.mimeType, data: imagenBase64.data } }
+                    ]
+                }],
+                generationConfig: {
+                    responseModalities: ["IMAGE"]
+                }
+            })
+        });
+
+        if (!respuesta.ok) {
+            const errData = await respuesta.json().catch(() => ({}));
+            throw new Error(errData.error?.message || `Error HTTP ${respuesta.status}`);
+        }
+
+        const data = await respuesta.json();
+        const parteImagen = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+
+        if (!parteImagen) {
+            throw new Error("No se pudo preparar la imagen. Intenta con un logo más nítido.");
+        }
+
+        return base64ABlob(parteImagen.inlineData.data, parteImagen.inlineData.mimeType);
+
+    } catch (error) {
+        console.error("Error en Image-to-Image (Gemini):", error);
+        throw new Error("No se pudo adaptar tu imagen: " + error.message);
+    }
+}
+
+/**
+ * 4. IMAGEN PREPARADA A 3D: Genera el modelo .GLB usando Hunyuan3D-2.1
  */
 export async function generarModelo3D(archivoBlob, tipoProducto = "Impresion 3D", onProgreso = () => {}) {
     try {
@@ -126,21 +203,21 @@ export async function generarModelo3D(archivoBlob, tipoProducto = "Impresion 3D"
 
         const client = await Client.connect("tencent/Hunyuan3D-2.1", { hf_token: hfToken });
 
-        onProgreso("Limpiando fondo y construyendo geometría 3D (~45 seg)...");
-        
-        const result = await client.predict("/shape_generation", { 
-            image: archivoBlob, 
-            mv_image_front: null, 
-            mv_image_back: null, 
-            mv_image_left: null, 
-            mv_image_right: null, 		
-            steps: 30, 		
-            guidance_scale: 5, 		
-            seed: Math.floor(Math.random() * 100000), 		
-            octree_resolution: 256, 		
-            check_box_rembg: true, 		
-            num_chunks: 8000, 		
-            randomize_seed: true, 
+        onProgreso("Construyendo geometría 3D desde la imagen preparada (~45 seg)...");
+
+        const result = await client.predict("/shape_generation", {
+            image: archivoBlob,
+            mv_image_front: null,
+            mv_image_back: null,
+            mv_image_left: null,
+            mv_image_right: null,
+            steps: 30,
+            guidance_scale: 5,
+            seed: Math.floor(Math.random() * 100000),
+            octree_resolution: 256,
+            check_box_rembg: true,
+            num_chunks: 8000,
+            randomize_seed: true,
         });
 
         onProgreso("Extrayendo archivo 3D renderizado...");
@@ -149,6 +226,6 @@ export async function generarModelo3D(archivoBlob, tipoProducto = "Impresion 3D"
 
     } catch (error) {
         console.error("Error en Hunyuan3D:", error);
-        throw new Error("Fallo en la generación 3D. Intenta de nuevo.");
+        throw new Error("Fallo en la generación 3D. Verifica tu cuota de Hugging Face o intenta de nuevo.");
     }
 }
