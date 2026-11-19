@@ -13,9 +13,10 @@
             --accent-kawa: #769789;
             --accent-glow: #95baaa;
             --glass-bg: rgba(255, 255, 255, 0.04);
-            --glass-border: rgba(118, 151, 137, 0.2);
+            --glass-border: rgba(118, 151, 137, 0.22);
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
+            --danger: #ef4444;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
@@ -25,83 +26,308 @@
             color: var(--text-main);
             min-height: 100vh;
             background-image:
-                radial-gradient(circle at 15% 50%, rgba(118, 151, 137, 0.15) 0%, transparent 40%),
-                radial-gradient(circle at 85% 30%, rgba(255, 255, 255, 0.05) 0%, transparent 40%);
+                radial-gradient(circle at 15% 45%, rgba(118, 151, 137, 0.16) 0%, transparent 42%),
+                radial-gradient(circle at 85% 25%, rgba(255, 255, 255, 0.05) 0%, transparent 40%);
             background-attachment: fixed;
-            padding: 30px 20px;
+            padding: 28px 20px 50px;
+            display: flex;
+            flex-direction: column;
         }
-
-        .container { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
-        @media (max-width: 900px) { .container { grid-template-columns: 1fr; } }
 
         header {
-            max-width: 1200px; margin: 0 auto 30px auto; display: flex; justify-content: space-between; align-items: center;
-            padding-bottom: 20px; border-bottom: 1px solid var(--glass-border);
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto 28px auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 18px;
+            border-bottom: 1px solid var(--glass-border);
         }
 
-        h1 { font-size: 1.8rem; font-weight: 700; letter-spacing: 1px; display: flex; align-items: center; gap: 10px; }
-        h1 span { color: var(--accent-kawa); text-shadow: 0 0 15px rgba(118, 151, 137, 0.4); }
+        .brand { display: flex; flex-direction: column; }
+        h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: 1px; line-height: 1.1; }
+        h1 span { color: var(--accent-kawa); text-shadow: 0 0 15px rgba(118, 151, 137, 0.45); }
+        .tagline { font-size: 0.78rem; color: var(--text-muted); letter-spacing: 0.5px; margin-top: 4px; }
 
-        .nav-links { display: flex; align-items: center; gap: 15px; }
-        .btn-outline { background: transparent; border: 1px solid var(--accent-kawa); color: var(--text-main); padding: 8px 16px; border-radius: 8px; cursor: pointer; transition: 0.3s; font-weight: 500; }
+        .nav-links { display: flex; align-items: center; gap: 12px; }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--accent-kawa);
+            color: var(--text-main);
+            padding: 8px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.25s;
+            font-weight: 500;
+            font-size: 0.88rem;
+        }
         .btn-outline:hover { background: var(--accent-kawa); color: #0a1110; }
 
-        .glass-card {
-            background: var(--glass-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--glass-border); border-radius: 24px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            padding: 35px; position: relative; overflow: hidden;
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+            flex: 1;
         }
-        .glass-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(118, 151, 137, 0.4), transparent); }
+        @media (max-width: 900px) {
+            .container { grid-template-columns: 1fr; gap: 24px; }
+            header { flex-direction: column; align-items: flex-start; gap: 14px; }
+        }
 
-        h2 { font-size: 1.3rem; font-weight: 600; margin-bottom: 25px; color: #fff; display: flex; align-items: center; gap: 10px; }
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+            padding: 32px;
+            position: relative;
+            overflow: hidden;
+        }
+        .glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(118, 151, 137, 0.45), transparent);
+        }
+
+        h2 { font-size: 1.25rem; font-weight: 600; margin-bottom: 20px; color: #fff; display: flex; align-items: center; gap: 10px; }
         h2 i { color: var(--accent-kawa); font-style: normal; }
-        label { display: block; font-size: 0.85rem; color: var(--text-muted); margin: 15px 0 8px 0; font-weight: 500; }
+        label { display: block; font-size: 0.84rem; color: var(--text-muted); margin: 14px 0 6px 0; font-weight: 500; }
 
         input, select, textarea {
-            width: 100%; padding: 14px 16px; border-radius: 12px; background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.05); color: var(--text-main); font-size: 0.95rem; outline: none; transition: all 0.3s ease;
+            width: 100%;
+            padding: 13px 15px;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.32);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            color: var(--text-main);
+            font-size: 0.93rem;
+            outline: none;
+            transition: all 0.25s ease;
         }
-        input:focus, select:focus, textarea:focus { border-color: var(--accent-kawa); background: rgba(0, 0, 0, 0.5); box-shadow: 0 0 10px rgba(118, 151, 137, 0.2); }
-
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-
-        .btn-primary {
-            width: 100%; padding: 16px; margin-top: 25px; border: none; border-radius: 12px;
-            background: linear-gradient(135deg, var(--accent-kawa), var(--accent-glow));
-            color: #050810; font-weight: 700; font-size: 1rem; cursor: pointer; box-shadow: 0 4px 15px rgba(118, 151, 137, 0.3); transition: all 0.3s ease;
+        select option { background-color: #0e1917; color: #f8fafc; }
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--accent-kawa);
+            background: rgba(0, 0, 0, 0.5);
+            box-shadow: 0 0 10px rgba(118, 151, 137, 0.22);
         }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(118, 151, 137, 0.5); }
-        .btn-primary:disabled { background: #334155; color: #94a3b8; pointer-events: none; box-shadow: none; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+        @media (max-width: 520px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+        .nota-precio {
+            font-size: 0.78rem;
+            color: var(--accent-glow);
+            margin-top: 8px;
+            min-height: 18px;
+        }
 
         .precio-box {
-            margin-top: 25px; padding: 20px; border-radius: 16px; background: linear-gradient(145deg, rgba(255,255,255,0.02), rgba(0,0,0,0.3));
-            border: 1px solid rgba(118, 151, 137, 0.3);
+            margin-top: 20px;
+            padding: 18px 20px;
+            border-radius: 16px;
+            background: linear-gradient(145deg, rgba(255,255,255,0.03), rgba(0,0,0,0.35));
+            border: 1px solid rgba(118, 151, 137, 0.35);
         }
         .precio-box .total-row { display: flex; justify-content: space-between; align-items: center; }
-        .precio-box .total { font-size: 1.8rem; font-weight: 700; color: #fff; text-shadow: 0 0 10px rgba(118, 151, 137, 0.4); }
-        .precio-box .anticipo { font-size: 0.85rem; color: var(--text-muted); margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px; }
+        .precio-box .total { font-size: 1.75rem; font-weight: 700; color: #fff; text-shadow: 0 0 12px rgba(118, 151, 137, 0.4); }
+        .precio-box .anticipo { font-size: 0.84rem; color: var(--text-muted); margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px; }
 
-        .visor-box { width: 100%; height: 320px; border-radius: 16px; background: rgba(0, 0, 0, 0.4); border: 1px dashed rgba(118, 151, 137, 0.4); display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
-        .visor-box img { max-width: 100%; max-height: 100%; display: none; border-radius: 12px; }
+        .acciones-pedido { display: grid; grid-template-columns: 1fr 1.4fr; gap: 12px; margin-top: 20px; }
+        @media (max-width: 520px) { .acciones-pedido { grid-template-columns: 1fr; } }
 
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; background: rgba(0,0,0,0.3); padding: 5px; border-radius: 12px; border: 1px solid var(--glass-border); }
-        .tab-btn { flex: 1; background: transparent; border: none; color: var(--text-muted); padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 500; transition: 0.3s; }
-        .tab-btn.active { background: rgba(118, 151, 137, 0.2); color: #fff; border: 1px solid rgba(118, 151, 137, 0.4); }
+        .btn-primary {
+            width: 100%;
+            padding: 14px 16px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--accent-kawa), var(--accent-glow));
+            color: #050810;
+            font-weight: 700;
+            font-size: 0.96rem;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(118, 151, 137, 0.3);
+            transition: all 0.25s ease;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(118, 151, 137, 0.5); }
+        .btn-primary:disabled { background: #334155; color: #94a3b8; pointer-events: none; box-shadow: none; transform: none; }
+
+        .btn-secondary {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 12px;
+            background: rgba(118, 151, 137, 0.12);
+            border: 1px solid var(--glass-border);
+            color: var(--text-main);
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+        .btn-secondary:hover { background: rgba(118, 151, 137, 0.24); border-color: var(--accent-kawa); }
+        .btn-secondary:disabled { opacity: 0.5; pointer-events: none; }
+
+        /* Visor y Shimmer */
+        .visor-box {
+            width: 100%;
+            height: 310px;
+            border-radius: 16px;
+            background: rgba(0, 0, 0, 0.42);
+            border: 1px dashed rgba(118, 151, 137, 0.4);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
+        .visor-box img { max-width: 100%; max-height: 100%; display: none; border-radius: 12px; object-fit: contain; }
+
+        .visor-loader {
+            position: absolute;
+            inset: 0;
+            background: rgba(10, 17, 16, 0.82);
+            backdrop-filter: blur(6px);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            z-index: 5;
+        }
+        .visor-loader.active { display: flex; }
+        .scan-line {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--accent-glow), transparent);
+            box-shadow: 0 0 18px var(--accent-glow);
+            animation: scanMove 2.2s ease-in-out infinite;
+        }
+        @keyframes scanMove {
+            0% { top: 0%; opacity: 0.4; }
+            50% { top: 96%; opacity: 1; }
+            100% { top: 0%; opacity: 0.4; }
+        }
+        .spinner-kawa {
+            width: 38px;
+            height: 38px;
+            border: 3px solid rgba(118, 151, 137, 0.2);
+            border-top-color: var(--accent-glow);
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Barra de progreso */
+        .progreso-wrap {
+            display: none;
+            margin-top: 14px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--glass-border);
+        }
+        .progreso-wrap.active { display: block; }
+        .progreso-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.78rem;
+            color: var(--accent-glow);
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        .progreso-track {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+        .progreso-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent-kawa), var(--accent-glow));
+            border-radius: 999px;
+            transition: width 0.4s ease;
+            box-shadow: 0 0 10px rgba(149, 186, 170, 0.5);
+        }
+        .status-ia { font-size: 0.82rem; color: var(--text-muted); margin-top: 10px; min-height: 20px; }
+
+        /* Archivo subido */
+        .upload-row { display: flex; gap: 10px; align-items: center; margin-top: 14px; }
+        .btn-icon {
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: rgba(239, 68, 68, 0.14);
+            border: 1px solid rgba(239, 68, 68, 0.35);
+            color: #fca5a5;
+            cursor: pointer;
+            font-size: 0.85rem;
+            display: none;
+            white-space: nowrap;
+        }
+        .btn-icon:hover { background: rgba(239, 68, 68, 0.25); }
+
+        .tabs { display: flex; gap: 10px; margin-bottom: 18px; background: rgba(0,0,0,0.3); padding: 5px; border-radius: 12px; border: 1px solid var(--glass-border); }
+        .tab-btn { flex: 1; background: transparent; border: none; color: var(--text-muted); padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 500; transition: 0.25s; font-size: 0.9rem; }
+        .tab-btn.active { background: rgba(118, 151, 137, 0.22); color: #fff; border: 1px solid rgba(118, 151, 137, 0.42); }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        /* Modal de Login */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(6px); display: none; justify-content: center; align-items: center; z-index: 1000; padding: 20px; }
         .modal-overlay.active { display: flex; }
-        .modal-content { width: 100%; max-width: 400px; background: #0a1110; border: 1px solid var(--accent-kawa); border-radius: 20px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+        .modal-content { width: 100%; max-width: 400px; background: #0d1715; border: 1px solid var(--accent-kawa); border-radius: 20px; padding: 28px; box-shadow: 0 15px 45px rgba(0,0,0,0.6); }
 
-        .pedido-item { padding: 15px; border: 1px solid var(--glass-border); border-radius: 12px; margin-bottom: 10px; background: rgba(255,255,255,0.02); }
-        .badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; background: rgba(118, 151, 137, 0.2); color: var(--accent-glow); border: 1px solid var(--accent-kawa); }
+        /* Pedidos List */
+        .pedidos-scroll { max-height: 460px; overflow-y: auto; padding-right: 4px; }
+        .pedido-item { padding: 15px; border: 1px solid var(--glass-border); border-radius: 14px; margin-bottom: 12px; background: rgba(255,255,255,0.025); }
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 0.74rem; font-weight: 600; background: rgba(118, 151, 137, 0.2); color: var(--accent-glow); border: 1px solid var(--accent-kawa); }
+        .badge-borrador { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.4); }
+        .btn-wa {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 7px 12px;
+            border-radius: 8px;
+            background: rgba(34, 197, 94, 0.15);
+            border: 1px solid rgba(34, 197, 94, 0.4);
+            color: #86efac;
+            text-decoration: none;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        .btn-wa:hover { background: rgba(34, 197, 94, 0.28); }
+
+        footer {
+            width: 100%;
+            max-width: 1200px;
+            margin: 34px auto 0 auto;
+            padding-top: 18px;
+            border-top: 1px solid rgba(118, 151, 137, 0.14);
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
     </style>
 </head>
 <body>
 
 <header>
-    <h1>KAWA<span>PROYECTS3D</span></h1>
+    <div class="brand">
+        <h1>KAWA<span>PROYECTS3D</span></h1>
+        <span class="tagline">Manufactura Digital &amp; Neón Flex • Barinas, Venezuela</span>
+    </div>
     <div class="nav-links" id="nav-user-area">
         <button class="btn-outline" onclick="abrirModalAuth()">Iniciar Sesión</button>
     </div>
@@ -110,86 +336,124 @@
 <div class="container">
     <!-- Módulo 1: Cotizador -->
     <div class="glass-card">
-        <h2><i>⚙️</i> Cotizador Rápido</h2>
+        <h2><i>⚙️</i> Cotizador Inteligente</h2>
 
         <label>Tipo de Producto</label>
         <select id="tipo-producto">
-            <option value="letrero_neon">Letrero Neón Flex LED</option>
-            <option value="letrero_pvc">Letrero PVC / Acrílico</option>
-            <option value="letrero_3d">Letrero 3D Relieve</option>
-            <option value="llavero">Llaveros Personalizados</option>
-            <option value="figura">Figura Técnica / Repuesto 3D</option>
+            <option value="letrero_neon">Letrero Neón Flex LED (Base 3D con canaletas)</option>
+            <option value="letrero_pvc">Letrero PVC / Vinil con Luz Indirecta</option>
+            <option value="letrero_3d">Letras 3D en Relieve (PLA / PETG)</option>
+            <option value="llavero">Llaveros Personalizados en Relieve (4-5 cm)</option>
             <option value="reconocimiento_3d">Reconocimiento / Trofeo 100% 3D</option>
-            <option value="reconocimiento_2d">Reconocimiento Extruido 2D</option>
+            <option value="reconocimiento_2d">Reconocimiento Extruido Plano 2D</option>
+            <option value="figura">Figura Técnica / Diseño Compuesto 3D</option>
         </select>
 
-        <div class="grid-2">
-            <div><label>Ancho (cm)</label><input type="number" id="dim-ancho" value="30" min="1"></div>
-            <div><label>Alto (cm)</label><input type="number" id="dim-alto" value="20" min="1"></div>
+        <div class="grid-3" id="grupo-medidas">
+            <div class="campo-dim">
+                <label>Ancho (cm)</label>
+                <input type="number" id="dim-ancho" value="50" min="5">
+            </div>
+            <div class="campo-dim">
+                <label>Alto (cm)</label>
+                <input type="number" id="dim-alto" value="25" min="5">
+            </div>
+            <div>
+                <label>Cantidad</label>
+                <input type="number" id="input-cantidad" value="1" min="1">
+            </div>
         </div>
+        <div id="nota-precio" class="nota-precio"></div>
 
         <label>Especificaciones Técnicas / Colores</label>
-        <textarea id="parametros-extra" rows="3" placeholder="Ej: Letras en acrílico blanco, luces azules..."></textarea>
+        <textarea id="parametros-extra" rows="3" placeholder="Ej: Texto 'Belleza Eterna', neón rosado y blanco cálido, base blanca..."></textarea>
 
         <div class="precio-box">
             <div class="total-row">
-                <span style="font-weight: 500; color: var(--text-muted);">Inversión Total:</span>
+                <span style="font-weight: 500; color: var(--text-muted);">Inversión Estimada:</span>
                 <span class="total" id="precio-total">$0.00 USD</span>
             </div>
-            <div class="anticipo">Anticipo requerido para iniciar (50%): <strong id="precio-anticipo">$0.00 USD</strong></div>
+            <div class="anticipo">Anticipo para iniciar producción (50%): <strong id="precio-anticipo">$0.00 USD</strong></div>
         </div>
 
-        <button id="btn-enviar-orden" class="btn-primary">Confirmar Pedido</button>
+        <div class="acciones-pedido">
+            <button id="btn-guardar-borrador" class="btn-secondary">💾 Guardar para después</button>
+            <button id="btn-enviar-orden" class="btn-primary">Confirmar Pedido</button>
+        </div>
     </div>
 
     <!-- Módulo 2: Estudio Creativo y Pedidos -->
     <div class="glass-card">
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('ai')">✨ Estudio Creativo</button>
+            <button class="tab-btn active" onclick="switchTab('ai')">✨ Estudio Creativo IA</button>
             <button class="tab-btn" onclick="switchTab('pedidos')" id="tab-pedidos-btn">📦 Mis Pedidos</button>
         </div>
 
         <!-- Pestaña IA -->
         <div id="tab-ai" class="tab-content active">
             <div class="visor-box" id="visor-contenedor">
-                <div id="placeholder-2d" style="color:var(--text-muted); text-align:center; padding:20px;">
-                    Sube tu logo o describe tu idea para que Gemini prepare el diseño.
+                <div class="visor-loader" id="visor-loader">
+                    <div class="scan-line"></div>
+                    <div class="spinner-kawa"></div>
+                    <span id="loader-texto" style="font-size: 0.85rem; color: var(--accent-glow);">Procesando en el taller digital...</span>
                 </div>
-                <img id="preview-2d" alt="Tu diseño">
+                <div id="placeholder-2d" style="color:var(--text-muted); text-align:center; padding:24px; font-size: 0.9rem;">
+                    Sube tu logo o describe tu idea para visualizar cómo quedaría fabricado en KawaProyects3D.
+                </div>
+                <img id="preview-2d" alt="Previsualización 2D">
                 <model-viewer id="visor-3d" src="" auto-rotate camera-controls style="display: none; width: 100%; height: 100%;"></model-viewer>
             </div>
 
-            <label style="margin-top: 20px;">Describe tu diseño o indica cómo adaptar tu logo:</label>
-            <textarea id="prompt-ia" rows="2" placeholder="Ej: Letrero neón que diga Belleza Eterna en rosado y blanco..."></textarea>
+            <!-- Barra de Progreso Visual -->
+            <div class="progreso-wrap" id="barra-progreso-wrap">
+                <div class="progreso-header">
+                    <span id="progreso-porcentaje">0%</span>
+                    <span id="progreso-tiempo">Tiempo: 0s / ~15s</span>
+                </div>
+                <div class="progreso-track">
+                    <div class="progreso-fill" id="barra-progreso-fill"></div>
+                </div>
+            </div>
+            <div id="status-ia" class="status-ia"></div>
 
-            <div class="grid-2" style="margin-top: 15px;">
+            <label style="margin-top: 12px;">Describe tu diseño o indica cómo adaptar tu logo:</label>
+            <textarea id="prompt-ia" rows="2" placeholder="Ej: Letrero neón que diga Liz Nails en rosado con bordes blancos..."></textarea>
+
+            <div class="upload-row">
                 <input type="file" id="input-imagen-cliente" accept="image/*" style="padding: 10px; cursor: pointer;">
-                <button id="btn-generar-2d" style="background: rgba(255,255,255,0.9); color: var(--bg-base); padding: 12px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">✨ Preparar Diseño 2D</button>
+                <button type="button" id="btn-limpiar-img" class="btn-icon" title="Quitar imagen subida">✕ Quitar</button>
             </div>
 
-            <div id="status-ia" style="font-size: 0.85rem; color: var(--accent-glow); margin-top: 12px; min-height: 20px;"></div>
-            <button id="btn-generar-3d" class="btn-primary" style="display: none; margin-top: 15px;">🧊 Convertir a Modelo 3D</button>
+            <div class="grid-2" style="margin-top: 14px;">
+                <button id="btn-generar-2d" class="btn-primary" style="background: rgba(255,255,255,0.92); color: var(--bg-base);">✨ Preparar Diseño 2D</button>
+                <button id="btn-generar-3d" class="btn-primary" style="display: none;">🧊 Convertir a 3D</button>
+            </div>
         </div>
 
         <!-- Pestaña Pedidos -->
         <div id="tab-pedidos" class="tab-content">
-            <div id="lista-mis-pedidos">
-                <p style="color: var(--text-muted); text-align: center; margin-top: 40px;">Inicia sesión para ver el estado de tus proyectos.</p>
+            <div id="lista-mis-pedidos" class="pedidos-scroll">
+                <p style="color: var(--text-muted); text-align: center; margin-top: 40px;">Inicia sesión con tu cédula para ver tus cotizaciones guardadas y el avance de tus pedidos.</p>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal de Autenticación -->
+<footer>
+    <span>© 2026 KawaProyects3D — Tú lo imaginas, nosotros lo creamos.</span>
+    <span>Barinas, Venezuela • Pagos: Pago Móvil, Zelle, USDT, Efectivo</span>
+</footer>
+
+<!-- Modal de Autenticación (Cédula + Clave) -->
 <div class="modal-overlay" id="modal-auth">
     <div class="modal-content">
-        <h2 id="modal-title" style="margin-bottom: 20px;">Iniciar Sesión</h2>
+        <h2 id="modal-title" style="margin-bottom: 16px;">Iniciar Sesión</h2>
 
         <div id="form-register-fields" style="display: none;">
             <label>Nombre Completo</label>
             <input type="text" id="auth-nombre" placeholder="Ej: Carlos Andrade">
             <label>Teléfono (WhatsApp)</label>
-            <input type="text" id="auth-telefono" placeholder="Ej: 0414-1234567">
+            <input type="text" id="auth-telefono" placeholder="Ej: 0424-1234567">
         </div>
 
         <label>Cédula de Identidad</label>
@@ -202,7 +466,7 @@
 
         <p style="text-align: center; margin-top: 15px; font-size: 0.85rem; color: var(--text-muted);">
             <span id="auth-toggle-text">¿No tienes cuenta?</span>
-            <a href="#" id="auth-toggle-link" style="color: var(--accent-kawa);">Regístrate</a>
+            <a href="#" id="auth-toggle-link" style="color: var(--accent-glow); font-weight: 600;">Regístrate</a>
         </p>
     </div>
 </div>
