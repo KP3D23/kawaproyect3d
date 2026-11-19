@@ -18,9 +18,9 @@ async function obtenerToken(nombreServicio) {
 }
 
 /**
- * Petición HTTP blindada: controla timeout (evita cuelgues en pending) y reintenta en 503/429
+ * Petición JSON blindada para Gemini (controla timeout y reintenta en 503/429)
  */
-async function fetchBlindado(url, options, { timeoutMs = 25000, maxReintentos = 2, onReintento = () => {} } = {}) {
+async function fetchJsonBlindado(url, options, { timeoutMs = 18000, maxReintentos = 1, onReintento = () => {} } = {}) {
     let ultimoError = null;
 
     for (let intento = 0; intento <= maxReintentos; intento++) {
@@ -33,12 +33,11 @@ async function fetchBlindado(url, options, { timeoutMs = 25000, maxReintentos = 
 
             if (respuesta.status === 503 || respuesta.status === 429) {
                 if (intento < maxReintentos) {
-                    const esperaSeg = (intento + 1) * 3;
-                    onReintento(`Servidor ocupado (${respuesta.status}). Reintentando en ${esperaSeg}s (${intento + 1}/${maxReintentos})...`);
-                    await new Promise(r => setTimeout(r, esperaSeg * 1000));
+                    onReintento(`Servidor ocupado (${respuesta.status}). Reintentando...`);
+                    await new Promise(r => setTimeout(r, 2500));
                     continue;
                 }
-                throw new Error(`Servidor de Google temporalmente saturado (${respuesta.status}). Intenta de nuevo en unos segundos.`);
+                throw new Error(`Servidor ocupado (${respuesta.status}).`);
             }
 
             if (!respuesta.ok) {
@@ -50,13 +49,10 @@ async function fetchBlindado(url, options, { timeoutMs = 25000, maxReintentos = 
         } catch (err) {
             clearTimeout(timer);
             ultimoError = err.name === 'AbortError'
-                ? new Error('Tiempo de espera agotado conectando con la IA.')
+                ? new Error('Tiempo de espera agotado.')
                 : err;
-
-            if (intento < maxReintentos && (err.name === 'AbortError' || err.message.includes('Failed to fetch'))) {
-                const esperaSeg = (intento + 1) * 2;
-                onReintento(`Conexión lenta. Reintentando en ${esperaSeg}s (${intento + 1}/${maxReintentos})...`);
-                await new Promise(r => setTimeout(r, esperaSeg * 1000));
+            if (intento < maxReintentos) {
+                await new Promise(r => setTimeout(r, 2000));
                 continue;
             }
             break;
@@ -67,7 +63,7 @@ async function fetchBlindado(url, options, { timeoutMs = 25000, maxReintentos = 
 }
 
 /**
- * Convierte un File o Blob a Base64 puro para enviarlo a Gemini
+ * Convierte un File o Blob a Base64 puro para que Gemini Vision pueda analizar el logo del cliente
  */
 function blobABase64(blob) {
     return new Promise((resolve, reject) => {
@@ -85,40 +81,28 @@ function blobABase64(blob) {
 }
 
 /**
- * Convierte la respuesta Base64 de Gemini de vuelta a un Blob utilizable por <img> y Hunyuan3D
- */
-function base64ABlob(base64, mimeType = 'image/png') {
-    const byteCharacters = atob(base64);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    return new Blob([byteArray], { type: mimeType });
-}
-
-/**
- * 1. Pule el prompt con Gemini 3.8 Flash. Si Google devuelve 503/timeout, usa respaldo local inmediato.
+ * 1. Pule y traduce el prompt del cliente usando Gemini 3.8 Flash (Texto gratuito).
+ * Si Google está saturado (503), activa respaldo local inmediato sin bloquear al usuario.
  */
 export async function optimizarPromptConGemini(promptCliente, tipoProducto, contextoTaller, onProgreso = () => {}) {
-    const promptRespaldoLocal = `${contextoTaller} Custom design requested: "${promptCliente}". Isolated single object, centered, slight 3/4 front angle, clean solid pure white background (#FFFFFF), studio product photography, sharp clean edges, no hands, no walls, no clutter.`;
+    const promptRespaldoLocal = `${contextoTaller} Custom design: "${promptCliente}". Isolated single object, centered, pure white background, studio product photography, sharp edges.`;
 
     try {
-        onProgreso("Puliendo tu diseño según las técnicas del taller...");
+        onProgreso("Gemini está puliendo tu idea según las técnicas del taller...");
         const apiKey = await obtenerToken('gemini_api');
         const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent";
 
         const instrucciones = `
-            You are an expert prompt engineer for 3D product mockup generation.
-            Combine the workshop manufacturing style with the customer's request into a single, clear, detailed English prompt.
-            Keep any exact text the customer wants written on the sign/product in quotes and in its original language (Spanish).
-            Always enforce: isolated object, centered, front-facing 3/4 slight angle, clean solid pure white background (#FFFFFF), studio product photography, sharp edges, no hands, no walls, no clutter (ideal for Image-to-3D conversion).
-            Return ONLY the final English prompt, with no explanations or markdown.
+            You are an expert prompt engineer for FLUX 3D product mockups.
+            Combine the workshop manufacturing style with the customer's request into ONE concise English prompt (maximum 55 words).
+            Keep any exact text the customer wants written on the sign in quotes and in Spanish.
+            Always include: isolated single object, centered, pure solid white background, studio product photo, sharp clean edges, no hands, no walls.
+            Return ONLY the final prompt, no explanations or markdown.
         `;
 
-        const mensaje = `Product type: ${tipoProducto}. Workshop manufacturing style: ${contextoTaller}. Customer request: "${promptCliente}"`;
+        const mensaje = `Product type: ${tipoProducto}. Workshop style: ${contextoTaller}. Customer request: "${promptCliente}"`;
 
-        const data = await fetchBlindado(
+        const data = await fetchJsonBlindado(
             url,
             {
                 method: "POST",
@@ -132,7 +116,7 @@ export async function optimizarPromptConGemini(promptCliente, tipoProducto, cont
                 })
             },
             {
-                timeoutMs: 15000,
+                timeoutMs: 14000,
                 maxReintentos: 1,
                 onReintento: onProgreso
             }
@@ -143,77 +127,83 @@ export async function optimizarPromptConGemini(promptCliente, tipoProducto, cont
 
     } catch (error) {
         console.warn("Respaldo local activado para prompt:", error.message);
-        onProgreso("Usando plantilla directa del taller para acelerar el proceso...");
+        onProgreso("Usando plantilla directa del taller...");
         return promptRespaldoLocal;
     }
 }
 
 /**
- * 2. TEXTO A IMAGEN: Genera un render 2D preparado para 3D usando Gemini Image
+ * 2. TEXTO A IMAGEN: Genera el boceto 2D usando Pollinations.ai (Motor FLUX gratuito y sin API Key)
  */
 export async function generarImagen2D(promptOptimizado, onProgreso = () => {}) {
-    try {
-        onProgreso("Renderizando boceto 2D con Gemini...");
-        const apiKey = await obtenerToken('gemini_api');
-        const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent";
+    // Limita la longitud del prompt para evitar errores de URL demasiado larga
+    const promptSeguro = promptOptimizado.replace(/\s+/g, ' ').trim().slice(0, 600);
+    const seed = Math.floor(Math.random() * 1000000);
+    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(promptSeguro)}?width=1024&height=1024&model=flux&nologo=true&seed=${seed}`;
 
-        const data = await fetchBlindado(
-            url,
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "x-goog-api-key": apiKey
-                },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: promptOptimizado }] }],
-                    generationConfig: { responseModalities: ["IMAGE"] }
-                })
-            },
-            {
-                timeoutMs: 45000,
-                maxReintentos: 2,
-                onReintento: onProgreso
+    let ultimoError = null;
+
+    for (let intento = 0; intento <= 1; intento++) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 45000);
+
+        try {
+            onProgreso(intento === 0
+                ? "Renderizando boceto 2D en estudio (FLUX)..."
+                : "Reintentando renderizado 2D..."
+            );
+
+            const respuesta = await fetch(url, { signal: controller.signal });
+            clearTimeout(timer);
+
+            if (!respuesta.ok) {
+                throw new Error(`Error del generador de imágenes (${respuesta.status}).`);
             }
-        );
 
-        const parteImagen = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-        if (!parteImagen) {
-            throw new Error("Gemini no devolvió una imagen. Intenta describir el diseño de otra forma.");
+            const blob = await respuesta.blob();
+            if (!blob || blob.size < 1000) {
+                throw new Error("La imagen recibida está vacía o incompleta.");
+            }
+
+            return blob;
+        } catch (err) {
+            clearTimeout(timer);
+            ultimoError = err.name === 'AbortError'
+                ? new Error("El generador tardó demasiado en responder. Intenta de nuevo.")
+                : err;
+            if (intento < 1) {
+                await new Promise(r => setTimeout(r, 2000));
+            }
         }
-
-        return base64ABlob(parteImagen.inlineData.data, parteImagen.inlineData.mimeType);
-
-    } catch (error) {
-        console.error("Error en Text-to-Image (Gemini):", error);
-        throw new Error("No se pudo generar la imagen 2D: " + error.message);
     }
+
+    console.error("Error en Text-to-Image (Pollinations):", ultimoError);
+    throw new Error("No se pudo generar la imagen 2D: " + ultimoError.message);
 }
 
 /**
- * 3. IMAGEN A IMAGEN PREPARADA: Adapta el logo/foto del cliente al producto físico sobre fondo blanco
+ * 3. IMAGEN A IMAGEN PREPARADA:
+ * Gemini Vision (gratuito) analiza el logo subido por el cliente y genera un prompt exacto
+ * para que Pollinations (FLUX) lo renderice como producto físico sobre fondo blanco.
  */
 export async function prepararImagenPara3D(archivoBlob, tipoProducto, contextoTaller, promptExtra = "", onProgreso = () => {}) {
     try {
-        onProgreso("Adaptando tu logo al formato de taller con Gemini...");
+        onProgreso("Analizando tu logo con Gemini Vision...");
         const apiKey = await obtenerToken('gemini_api');
-        const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent";
+        const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent";
 
         const imagenBase64 = await blobABase64(archivoBlob);
 
-        const instruccionEdicion = `
-            Transform the provided logo/image into a realistic physical manufactured product ready for 3D reconstruction.
-            Preserve the exact text, shapes, and brand identity from the original image.
+        const instruccionVision = `
+            Look closely at the provided logo/image. Describe its exact text, main icon/shapes, and colors, and combine it with this physical manufacturing style into ONE concise English image prompt (max 60 words) for FLUX:
             Product type: ${tipoProducto}.
-            Manufacturing style: ${contextoTaller}
-            ${promptExtra ? `Additional customer instructions: "${promptExtra}".` : ""}
-            CRITICAL RULES FOR 3D CONVERSION:
-            - Place the finished product completely isolated and centered on a clean, solid pure white background (#FFFFFF).
-            - Remove any original background, tables, hands, or clutter.
-            - Give it clear physical thickness, clean edges, and studio lighting so a 3D AI model can accurately extrude its geometry.
+            Manufacturing style: ${contextoTaller}.
+            ${promptExtra ? `Extra customer request: "${promptExtra}".` : ""}
+            Always enforce: isolated single physical product, centered, pure solid white background, studio product photography, sharp edges, clear 3D depth.
+            Return ONLY the final English prompt.
         `;
 
-        const data = await fetchBlindado(
+        const data = await fetchJsonBlindado(
             url,
             {
                 method: "POST",
@@ -224,30 +214,30 @@ export async function prepararImagenPara3D(archivoBlob, tipoProducto, contextoTa
                 body: JSON.stringify({
                     contents: [{
                         parts: [
-                            { text: instruccionEdicion },
+                            { text: instruccionVision },
                             { inlineData: { mimeType: imagenBase64.mimeType, data: imagenBase64.data } }
                         ]
-                    }],
-                    generationConfig: { responseModalities: ["IMAGE"] }
+                    }]
                 })
             },
             {
-                timeoutMs: 45000,
-                maxReintentos: 2,
+                timeoutMs: 18000,
+                maxReintentos: 1,
                 onReintento: onProgreso
             }
         );
 
-        const parteImagen = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-        if (!parteImagen) {
-            throw new Error("No se pudo preparar la imagen. Intenta con un logo más nítido.");
+        const promptAdaptado = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        if (!promptAdaptado) {
+            throw new Error("No se pudo describir el logo.");
         }
 
-        return base64ABlob(parteImagen.inlineData.data, parteImagen.inlineData.mimeType);
+        return await generarImagen2D(promptAdaptado, onProgreso);
 
     } catch (error) {
-        console.error("Error en Image-to-Image (Gemini):", error);
-        throw new Error("No se pudo adaptar tu imagen: " + error.message);
+        console.warn("Usando logo original directamente para 3D:", error.message);
+        onProgreso("Logo listo. Puedes pasar directo a Convertir a 3D.");
+        return archivoBlob;
     }
 }
 
