@@ -1,6 +1,10 @@
 import { Client } from "https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js";
 import { supabase } from './supa.js';
 
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const SITE_URL = "https://kp3d23.github.io/kawaproyect3d/";
+const SITE_NAME = "KawaProyects3D";
+
 /**
  * Obtiene tokens de API almacenados de forma segura en Supabase
  */
@@ -18,9 +22,10 @@ async function obtenerToken(nombreServicio) {
 }
 
 /**
- * Petición JSON blindada para Gemini (controla timeout y reintenta en 503/429)
+ * Petición blindada a OpenRouter (timeout + reintentos en 503/429)
  */
-async function fetchJsonBlindado(url, options, { timeoutMs = 18000, maxReintentos = 1, onReintento = () => {} } = {}) {
+async function fetchOpenRouter(payload, { timeoutMs = 45000, maxReintentos = 1, onReintento = () => {} } = {}) {
+    const apiKey = await obtenerToken('openrouter_api');
     let ultimoError = null;
 
     for (let intento = 0; intento <= maxReintentos; intento++) {
@@ -28,7 +33,17 @@ async function fetchJsonBlindado(url, options, { timeoutMs = 18000, maxReintento
         const timer = setTimeout(() => controller.abort(), timeoutMs);
 
         try {
-            const respuesta = await fetch(url, { ...options, signal: controller.signal });
+            const respuesta = await fetch(OPENROUTER_URL, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${apiKey}`,
+                    "HTTP-Referer": SITE_URL,
+                    "X-Title": SITE_NAME,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload),
+                signal: controller.signal
+            });
             clearTimeout(timer);
 
             if (respuesta.status === 503 || respuesta.status === 429) {
@@ -37,7 +52,7 @@ async function fetchJsonBlindado(url, options, { timeoutMs = 18000, maxReintento
                     await new Promise(r => setTimeout(r, 2500));
                     continue;
                 }
-                throw new Error(`Servidor ocupado (${respuesta.status}).`);
+                throw new Error(`OpenRouter temporalmente ocupado (${respuesta.status}).`);
             }
 
             if (!respuesta.ok) {
@@ -49,7 +64,7 @@ async function fetchJsonBlindado(url, options, { timeoutMs = 18000, maxReintento
         } catch (err) {
             clearTimeout(timer);
             ultimoError = err.name === 'AbortError'
-                ? new Error('Tiempo de espera agotado.')
+                ? new Error("Tiempo de espera agotado conectando con OpenRouter.")
                 : err;
             if (intento < maxReintentos) {
                 await new Promise(r => setTimeout(r, 2000));
@@ -63,66 +78,72 @@ async function fetchJsonBlindado(url, options, { timeoutMs = 18000, maxReintento
 }
 
 /**
- * Convierte un File o Blob a Base64 puro para que Gemini Vision pueda analizar el logo del cliente
+ * Convierte File/Blob a Data URL (data:image/png;base64,...)
  */
-function blobABase64(blob) {
+function blobADataURL(blob) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onloadend = () => {
-            const base64Data = reader.result.split(',')[1];
-            resolve({
-                mimeType: blob.type || 'image/png',
-                data: base64Data
-            });
-        };
+        reader.onloadend = () => resolve(reader.result);
         reader.onerror = reject;
         reader.readAsDataURL(blob);
     });
 }
 
 /**
- * 1. Pule y traduce el prompt del cliente usando Gemini 3.8 Flash (Texto gratuito).
- * Si Google está saturado (503), activa respaldo local inmediato sin bloquear al usuario.
+ * Convierte un Data URL (data:image/...;base64,...) o URL remota en Blob
+ */
+async function extraerBlobDeRespuestaOpenRouter(data) {
+    const mensaje = data.choices?.[0]?.message;
+    if (!mensaje) throw new Error("Respuesta vacía del modelo.");
+
+    // Formato estándar de OpenRouter para modelos con salida de imagen (Gemini Image)
+    const imgUrl =
+        mensaje.images?.[0]?.image_url?.url ||
+        mensaje.images?.[0]?.url ||
+        (Array.isArray(mensaje.content)
+            ? mensaje.content.find(c => c.type === 'image_url')?.image_url?.url
+            : null);
+
+    if (!imgUrl) {
+        console.error("Respuesta de OpenRouter sin imagen:", data);
+        throw new Error("El modelo no devolvió una imagen. Intenta describir el diseño con más detalle.");
+    }
+
+    const res = await fetch(imgUrl);
+    return await res.blob();
+}
+
+/**
+ * 1. Pule y traduce el prompt del cliente usando Gemini 2.5 Flash vía OpenRouter
  */
 export async function optimizarPromptConGemini(promptCliente, tipoProducto, contextoTaller, onProgreso = () => {}) {
-    const promptRespaldoLocal = `${contextoTaller} Custom design: "${promptCliente}". Isolated single object, centered, pure white background, studio product photography, sharp edges.`;
+    const promptRespaldoLocal = `Custom ${tipoProducto} featuring: "${promptCliente}". Manufacturing style: ${contextoTaller} Isolated single object, centered, pure solid white background (#FFFFFF), studio product photography, sharp clean edges.`;
 
     try {
         onProgreso("Gemini está puliendo tu idea según las técnicas del taller...");
-        const apiKey = await obtenerToken('gemini_api');
-        const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent";
 
-        const instrucciones = `
-            You are an expert prompt engineer for FLUX 3D product mockups.
-            Combine the workshop manufacturing style with the customer's request into ONE concise English prompt (maximum 55 words).
-            Keep any exact text the customer wants written on the sign in quotes and in Spanish.
-            Always include: isolated single object, centered, pure solid white background, studio product photo, sharp clean edges, no hands, no walls.
-            Return ONLY the final prompt, no explanations or markdown.
-        `;
-
-        const mensaje = `Product type: ${tipoProducto}. Workshop style: ${contextoTaller}. Customer request: "${promptCliente}"`;
-
-        const data = await fetchJsonBlindado(
-            url,
+        const data = await fetchOpenRouter(
             {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "x-goog-api-key": apiKey
-                },
-                body: JSON.stringify({
-                    system_instruction: { parts: [{ text: instrucciones }] },
-                    contents: [{ parts: [{ text: mensaje }] }]
-                })
+                model: "google/gemini-2.5-flash",
+                messages: [
+                    {
+                        role: "system",
+                        content: `You are an expert prompt engineer for 3D product mockup generation.
+Combine the customer's request with the workshop manufacturing style into a single, clear, detailed English prompt.
+Keep any exact text the customer wants written on the sign in quotes and in its original language (Spanish).
+Always enforce: isolated single object, centered, slight 3/4 front angle, clean solid pure white background (#FFFFFF), studio product photography, sharp edges, no hands, no walls, no clutter.
+Return ONLY the final English prompt, with no explanations or markdown.`
+                    },
+                    {
+                        role: "user",
+                        content: `Product type: ${tipoProducto}. Customer request: "${promptCliente}". Workshop manufacturing style: ${contextoTaller}`
+                    }
+                ]
             },
-            {
-                timeoutMs: 14000,
-                maxReintentos: 1,
-                onReintento: onProgreso
-            }
+            { timeoutMs: 20000, maxReintentos: 1, onReintento: onProgreso }
         );
 
-        const texto = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        const texto = data.choices?.[0]?.message?.content?.trim();
         return texto || promptRespaldoLocal;
 
     } catch (error) {
@@ -133,111 +154,74 @@ export async function optimizarPromptConGemini(promptCliente, tipoProducto, cont
 }
 
 /**
- * 2. TEXTO A IMAGEN: Genera el boceto 2D usando Pollinations.ai (Motor FLUX gratuito y sin API Key)
+ * 2. TEXTO A IMAGEN: Genera el boceto 2D usando Gemini 2.5 Flash Image vía OpenRouter
  */
 export async function generarImagen2D(promptOptimizado, onProgreso = () => {}) {
-    // Limita la longitud del prompt para evitar errores de URL demasiado larga
-    const promptSeguro = promptOptimizado.replace(/\s+/g, ' ').trim().slice(0, 600);
-    const seed = Math.floor(Math.random() * 1000000);
-    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(promptSeguro)}?width=1024&height=1024&model=flux&nologo=true&seed=${seed}`;
+    try {
+        onProgreso("Renderizando boceto 2D con Gemini (OpenRouter)...");
 
-    let ultimoError = null;
+        const data = await fetchOpenRouter(
+            {
+                model: "google/gemini-2.5-flash-image",
+                modalities: ["image", "text"],
+                messages: [
+                    {
+                        role: "user",
+                        content: promptOptimizado
+                    }
+                ]
+            },
+            { timeoutMs: 50000, maxReintentos: 1, onReintento: onProgreso }
+        );
 
-    for (let intento = 0; intento <= 1; intento++) {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 45000);
+        return await extraerBlobDeRespuestaOpenRouter(data);
 
-        try {
-            onProgreso(intento === 0
-                ? "Renderizando boceto 2D en estudio (FLUX)..."
-                : "Reintentando renderizado 2D..."
-            );
-
-            const respuesta = await fetch(url, { signal: controller.signal });
-            clearTimeout(timer);
-
-            if (!respuesta.ok) {
-                throw new Error(`Error del generador de imágenes (${respuesta.status}).`);
-            }
-
-            const blob = await respuesta.blob();
-            if (!blob || blob.size < 1000) {
-                throw new Error("La imagen recibida está vacía o incompleta.");
-            }
-
-            return blob;
-        } catch (err) {
-            clearTimeout(timer);
-            ultimoError = err.name === 'AbortError'
-                ? new Error("El generador tardó demasiado en responder. Intenta de nuevo.")
-                : err;
-            if (intento < 1) {
-                await new Promise(r => setTimeout(r, 2000));
-            }
-        }
+    } catch (error) {
+        console.error("Error en Text-to-Image (OpenRouter):", error);
+        throw new Error("No se pudo generar la imagen 2D: " + error.message);
     }
-
-    console.error("Error en Text-to-Image (Pollinations):", ultimoError);
-    throw new Error("No se pudo generar la imagen 2D: " + ultimoError.message);
 }
 
 /**
- * 3. IMAGEN A IMAGEN PREPARADA:
- * Gemini Vision (gratuito) analiza el logo subido por el cliente y genera un prompt exacto
- * para que Pollinations (FLUX) lo renderice como producto físico sobre fondo blanco.
+ * 3. IMAGEN A IMAGEN PREPARADA: Adapta el logo del cliente al producto físico sobre fondo blanco
  */
 export async function prepararImagenPara3D(archivoBlob, tipoProducto, contextoTaller, promptExtra = "", onProgreso = () => {}) {
     try {
-        onProgreso("Analizando tu logo con Gemini Vision...");
-        const apiKey = await obtenerToken('gemini_api');
-        const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent";
+        onProgreso("Adaptando tu logo al formato de taller con Gemini...");
+        const dataUrl = await blobADataURL(archivoBlob);
 
-        const imagenBase64 = await blobABase64(archivoBlob);
+        const instruccionEdicion = `Transform the provided logo/image into a realistic physical manufactured product ready for 3D reconstruction.
+Preserve the exact text, shapes, and brand identity from the original image.
+Product type: ${tipoProducto}.
+Manufacturing style: ${contextoTaller}
+${promptExtra ? `Additional customer instructions: "${promptExtra}".` : ""}
+CRITICAL RULES FOR 3D CONVERSION:
+- Place the finished product completely isolated and centered on a clean, solid pure white background (#FFFFFF).
+- Remove any original background, tables, hands, or clutter.
+- Give it clear physical thickness, clean edges, and studio lighting so a 3D AI model can accurately extrude its geometry.`;
 
-        const instruccionVision = `
-            Look closely at the provided logo/image. Describe its exact text, main icon/shapes, and colors, and combine it with this physical manufacturing style into ONE concise English image prompt (max 60 words) for FLUX:
-            Product type: ${tipoProducto}.
-            Manufacturing style: ${contextoTaller}.
-            ${promptExtra ? `Extra customer request: "${promptExtra}".` : ""}
-            Always enforce: isolated single physical product, centered, pure solid white background, studio product photography, sharp edges, clear 3D depth.
-            Return ONLY the final English prompt.
-        `;
-
-        const data = await fetchJsonBlindado(
-            url,
+        const data = await fetchOpenRouter(
             {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "x-goog-api-key": apiKey
-                },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [
-                            { text: instruccionVision },
-                            { inlineData: { mimeType: imagenBase64.mimeType, data: imagenBase64.data } }
+                model: "google/gemini-2.5-flash-image",
+                modalities: ["image", "text"],
+                messages: [
+                    {
+                        role: "user",
+                        content: [
+                            { type: "text", text: instruccionEdicion },
+                            { type: "image_url", image_url: { url: dataUrl } }
                         ]
-                    }]
-                })
+                    }
+                ]
             },
-            {
-                timeoutMs: 18000,
-                maxReintentos: 1,
-                onReintento: onProgreso
-            }
+            { timeoutMs: 55000, maxReintentos: 1, onReintento: onProgreso }
         );
 
-        const promptAdaptado = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-        if (!promptAdaptado) {
-            throw new Error("No se pudo describir el logo.");
-        }
-
-        return await generarImagen2D(promptAdaptado, onProgreso);
+        return await extraerBlobDeRespuestaOpenRouter(data);
 
     } catch (error) {
-        console.warn("Usando logo original directamente para 3D:", error.message);
-        onProgreso("Logo listo. Puedes pasar directo a Convertir a 3D.");
-        return archivoBlob;
+        console.error("Error en Image-to-Image (OpenRouter):", error);
+        throw new Error("No se pudo adaptar tu imagen: " + error.message);
     }
 }
 
@@ -268,12 +252,27 @@ export async function generarModelo3D(archivoBlob, tipoProducto = "Impresion 3D"
             randomize_seed: true,
         });
 
+        console.log("Respuesta cruda de Hunyuan3D:", result.data);
         onProgreso("Extrayendo archivo 3D renderizado...");
-        const archivo3D = result.data[0];
-        return { url: archivo3D.url || archivo3D.path, modo: "IA Nube (Hunyuan3D)" };
+
+        // Busca automáticamente el primer objeto que contenga un archivo .glb o url válida
+        const item = Array.isArray(result.data)
+            ? result.data.find(d => d && (d.url || d.path || d.value?.url))
+            : result.data;
+
+        const urlFinal = item?.url || item?.value?.url || item?.path;
+        if (!urlFinal) {
+            throw new Error("Hunyuan3D no devolvió una URL de modelo 3D válida.");
+        }
+
+        if (urlFinal.toLowerCase().endsWith('.obj')) {
+            throw new Error("El motor 3D devolvió un archivo .OBJ y el visor web solo muestra .GLB.");
+        }
+
+        return { url: urlFinal, modo: "IA Nube (Hunyuan3D)" };
 
     } catch (error) {
         console.error("Error en Hunyuan3D:", error);
-        throw new Error("Fallo en la generación 3D. Verifica tu cuota de Hugging Face o intenta de nuevo.");
+        throw new Error("Fallo en la generación 3D: " + error.message);
     }
 }
