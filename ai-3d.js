@@ -49,11 +49,11 @@ function base64ABlob(base64, mimeType = 'image/png') {
 }
 
 /**
- * 1. Pule y traduce el prompt del cliente usando Gemini 2.5 Flash (Texto)
+ * 1. Pule y traduce el prompt del cliente usando Gemini 3.8 Flash (Texto)
  */
 export async function optimizarPromptConGemini(promptCliente, tipoProducto, contextoTaller) {
     const apiKey = await obtenerToken('gemini_api');
-    const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+    const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent";
 
     const instrucciones = `
         You are an expert prompt engineer for 3D product mockup generation.
@@ -87,7 +87,7 @@ export async function optimizarPromptConGemini(promptCliente, tipoProducto, cont
 }
 
 /**
- * 2. TEXTO A IMAGEN: Genera un render 2D preparado para 3D usando Gemini 2.5 Flash Image
+ * 2. TEXTO A IMAGEN: Genera un render 2D preparado para 3D usando Gemini Image
  */
 export async function generarImagen2D(promptOptimizado, onProgreso = () => {}) {
     try {
