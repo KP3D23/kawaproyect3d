@@ -7,24 +7,26 @@ import {
 } from './ai-3d.js';
 
 // ==========================================
-// 1. ESTADO GLOBAL, TARIFAS Y CONTEXTOS IA
+// 1. CONFIGURACIÓN, TARIFAS Y CONTEXTOS IA
 // ==========================================
-let blobImagenSubida = null;     // Imagen cruda que sube el cliente (opcional)
-let blobImagenPreparada = null;  // Imagen ya lista/preparada que irá a Hunyuan3D
+const WHATSAPP_TALLER = "584245040671"; // Número del taller (formato internacional sin +)
+
+let blobImagenSubida = null;
+let blobImagenPreparada = null;
 let urlModeloGenerado = null;
 let usuarioActual = JSON.parse(localStorage.getItem('kawa_user')) || null;
 
+// Tarifas base calibradas con tus precios reales de Barinas
 const TARIFAS = {
-    'letrero_neon': 0.06,
-    'letrero_pvc': 0.04,
-    'letrero_3d': 0.05,
-    'llavero': 0.10,
-    'figura': 0.15,
-    'reconocimiento_3d': 0.20,
-    'reconocimiento_2d': 0.12
+    'letrero_neon': 0.045,     // Ej: 50x20cm -> ~$45
+    'letrero_pvc': 0.015,      // Ej: 60x60cm -> ~$50
+    'letrero_3d': 0.04,        // Ej: 50x15cm -> ~$30
+    'figura': 0.08,
+    'reconocimiento_3d': 25.0, // Precio base por unidad (20cm 100% 3D)
+    'reconocimiento_2d': 12.0  // Precio base por unidad (plano 2D)
 };
 
-// Calibrado con tus fotos reales de KawaProyects3D
+// Reverse-Prompting calibrado con tus fotos reales
 const CONTEXTOS_TALLER = {
     'letrero_neon': "Realistic 3D product render of a custom Neon Flex LED sign mounted on a 3D-printed white PLA plastic channel base (NOT a solid clear acrylic sheet). Visible thin 3D-printed plastic borders, routed channels holding the glowing silicone neon LED tubes, and small structural connector bars joining the letters at the bottom. High contrast, studio lighting.",
     'letrero_pvc': "Realistic 3D product render of a circular or custom-cut flat PVC/Acrylic wall sign with crisp printed adhesive vinyl graphics on a matte surface, featuring soft indirect backlit LED halo glow around the outer rim.",
@@ -36,13 +38,100 @@ const CONTEXTOS_TALLER = {
 };
 
 // ==========================================
-// 2. SISTEMA DE AUTENTICACIÓN (CÉDULA + CLAVE)
+// 2. CONTROLADOR DE BARRA DE PROGRESO Y LOADER
+// ==========================================
+let intervaloProgreso = null;
+let porcentajeActual = 0;
+let segundosTranscurridos = 0;
+
+function iniciarProgreso(estimadoSeg = 15, mensajeInicial = "Iniciando...") {
+    detenerIntervalo();
+    porcentajeActual = 8;
+    segundosTranscurridos = 0;
+
+    const wrap = document.getElementById('barra-progreso-wrap');
+    const loader = document.getElementById('visor-loader');
+    const status = document.getElementById('status-ia');
+
+    if (wrap) wrap.classList.add('active');
+    if (loader) loader.classList.add('active');
+    if (status) status.textContent = '⏳ ' + mensajeInicial;
+
+    actualizarUIProgreso(porcentajeActual, estimadoSeg, mensajeInicial);
+
+    intervaloProgreso = setInterval(() => {
+        segundosTranscurridos++;
+        // Avance asintótico: se acerca a 94% sin llegar a 100% hasta que termine la API
+        if (porcentajeActual < 94) {
+            const incremento = Math.max(0.6, (94 - porcentajeActual) / (estimadoSeg * 0.7));
+            porcentajeActual = Math.min(94, porcentajeActual + incremento);
+        }
+        actualizarUIProgreso(porcentajeActual, estimadoSeg);
+    }, 1000);
+}
+
+function setHitoProgreso(porcentajeMinimo, mensaje, estimadoSeg = 15) {
+    if (porcentajeMinimo > porcentajeActual) {
+        porcentajeActual = porcentajeMinimo;
+    }
+    const status = document.getElementById('status-ia');
+    const loaderTexto = document.getElementById('loader-texto');
+    if (status) status.textContent = '⏳ ' + mensaje;
+    if (loaderTexto) loaderTexto.textContent = mensaje;
+    actualizarUIProgreso(porcentajeActual, estimadoSeg);
+}
+
+function finalizarProgreso(exito, mensajeFinal) {
+    detenerIntervalo();
+    const wrap = document.getElementById('barra-progreso-wrap');
+    const fill = document.getElementById('barra-progreso-fill');
+    const pct = document.getElementById('progreso-porcentaje');
+    const tiempo = document.getElementById('progreso-tiempo');
+    const loader = document.getElementById('visor-loader');
+    const status = document.getElementById('status-ia');
+
+    if (loader) loader.classList.remove('active');
+    if (status) status.textContent = (exito ? '✅ ' : '❌ ') + mensajeFinal;
+
+    if (exito && fill && pct && tiempo) {
+        fill.style.width = '100%';
+        pct.textContent = '100%';
+        tiempo.textContent = `Completado en ${segundosTranscurridos}s`;
+        setTimeout(() => { if (wrap) wrap.classList.remove('active'); }, 2500);
+    } else if (wrap) {
+        wrap.classList.remove('active');
+    }
+}
+
+function actualizarUIProgreso(pctVal, estimadoSeg, textoLoader = null) {
+    const fill = document.getElementById('barra-progreso-fill');
+    const pct = document.getElementById('progreso-porcentaje');
+    const tiempo = document.getElementById('progreso-tiempo');
+    const loaderTexto = document.getElementById('loader-texto');
+
+    const redondeado = Math.round(pctVal);
+    if (fill) fill.style.width = `${redondeado}%`;
+    if (pct) pct.textContent = `${redondeado}%`;
+    if (tiempo) tiempo.textContent = `Tiempo: ${segundosTranscurridos}s / ~${estimadoSeg}s`;
+    if (textoLoader && loaderTexto) loaderTexto.textContent = textoLoader;
+}
+
+function detenerIntervalo() {
+    if (intervaloProgreso) {
+        clearInterval(intervaloProgreso);
+        intervaloProgreso = null;
+    }
+}
+
+// ==========================================
+// 3. SISTEMA DE AUTENTICACIÓN (CÉDULA + CLAVE)
 // ==========================================
 if (window.location.pathname.includes('taller.html')) {
     if (!usuarioActual || usuarioActual.rol !== 'admin') {
         window.location.href = 'index.html';
     } else {
-        document.getElementById('admin-name').textContent = `Admin: ${usuarioActual.nombre}`;
+        const adminName = document.getElementById('admin-name');
+        if (adminName) adminName.textContent = `Admin: ${usuarioActual.nombre}`;
         cargarDashboardTaller();
     }
 }
@@ -50,7 +139,7 @@ if (window.location.pathname.includes('taller.html')) {
 if (document.getElementById('nav-user-area')) {
     if (usuarioActual) {
         document.getElementById('nav-user-area').innerHTML = `
-            <span style="color: var(--text-muted); font-size: 0.9rem;">Hola, ${usuarioActual.nombre.split(' ')[0]}</span>
+            <span style="color: var(--text-muted); font-size: 0.88rem;">Hola, ${usuarioActual.nombre.split(' ')[0]}</span>
             <button class="btn-outline" onclick="cerrarSesion()">Salir</button>
         `;
         cargarMisPedidos();
@@ -64,7 +153,7 @@ window.cerrarSesion = function () {
 
 let modoAuth = 'login';
 window.abrirModalAuth = function () {
-    document.getElementById('modal-auth').classList.add('active');
+    document.getElementById('modal-auth')?.classList.add('active');
 };
 
 document.getElementById('modal-auth')?.addEventListener('click', (e) => {
@@ -124,39 +213,68 @@ function iniciarSesionLocal(data) {
 }
 
 // ==========================================
-// 3. COTIZADOR Y PESTAÑAS (Index)
+// 4. COTIZADOR INTELIGENTE Y PESTAÑAS
 // ==========================================
 window.switchTab = function (tabName) {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
     if (tabName === 'pedidos') {
-        document.querySelectorAll('.tab-btn')[1].classList.add('active');
-        document.getElementById('tab-pedidos').classList.add('active');
+        document.querySelectorAll('.tab-btn')[1]?.classList.add('active');
+        document.getElementById('tab-pedidos')?.classList.add('active');
     } else {
-        document.querySelectorAll('.tab-btn')[0].classList.add('active');
-        document.getElementById('tab-ai').classList.add('active');
+        document.querySelectorAll('.tab-btn')[0]?.classList.add('active');
+        document.getElementById('tab-ai')?.classList.add('active');
     }
 };
 
 function calcularCotizacion() {
-    const anchoInput = document.getElementById('dim-ancho');
-    if (!anchoInput) return;
+    const tipoSelect = document.getElementById('tipo-producto');
+    if (!tipoSelect) return 0;
 
-    const ancho = parseFloat(anchoInput.value) || 0;
-    const alto = parseFloat(document.getElementById('dim-alto').value) || 0;
-    const tipo = document.getElementById('tipo-producto').value;
+    const tipo = tipoSelect.value;
+    const ancho = parseFloat(document.getElementById('dim-ancho')?.value) || 0;
+    const alto = parseFloat(document.getElementById('dim-alto')?.value) || 0;
+    const cantidad = Math.max(1, parseInt(document.getElementById('input-cantidad')?.value) || 1);
+    const nota = document.getElementById('nota-precio');
+    const camposDim = document.querySelectorAll('.campo-dim');
 
-    const area = ancho * alto;
-    const tarifa = TARIFAS[tipo] || 0.05;
-    const totalUsd = (area * tarifa).toFixed(2);
+    let totalUsd = 0;
 
-    document.getElementById('precio-total').textContent = `$${totalUsd} USD`;
+    if (tipo === 'llavero') {
+        camposDim.forEach(el => el.style.display = 'none');
+        const precioUnit = cantidad >= 12 ? 2.20 : 3.00;
+        totalUsd = precioUnit * cantidad;
+        if (nota) {
+            nota.textContent = cantidad >= 12
+                ? `🎉 Precio por docena aplicado: $2.20 USD c/u (Tamaño estándar 4-5 cm).`
+                : `Tamaño estándar 4-5 cm ($3.00 c/u). A partir de 12 unidades baja a $2.20 c/u.`;
+        }
+    } else if (tipo === 'reconocimiento_3d' || tipo === 'reconocimiento_2d') {
+        camposDim.forEach(el => el.style.display = 'none');
+        const precioUnit = TARIFAS[tipo];
+        totalUsd = precioUnit * cantidad;
+        if (nota) {
+            nota.textContent = tipo === 'reconocimiento_3d'
+                ? `Estándar 20 cm 100% 3D ($25.00 USD c/u).`
+                : `Estándar plano 2D con base ($12.00 USD c/u).`;
+        }
+    } else {
+        camposDim.forEach(el => el.style.display = 'block');
+        const area = ancho * alto;
+        const tarifa = TARIFAS[tipo] || 0.04;
+        const unitario = Math.max(15, area * tarifa); // Mínimo operativo $15 para letreros
+        totalUsd = unitario * cantidad;
+        if (nota) nota.textContent = `Precio aproximado según área (${ancho}x${alto} cm). Se confirma exacto al aprobar diseño.`;
+    }
+
+    const totalFmt = totalUsd.toFixed(2);
+    document.getElementById('precio-total').textContent = `$${totalFmt} USD`;
     document.getElementById('precio-anticipo').textContent = `$${(totalUsd / 2).toFixed(2)} USD`;
-    return totalUsd;
+    return totalFmt;
 }
 
-['dim-ancho', 'dim-alto', 'tipo-producto'].forEach(id => {
+['dim-ancho', 'dim-alto', 'input-cantidad', 'tipo-producto'].forEach(id => {
     document.getElementById(id)?.addEventListener('input', calcularCotizacion);
 });
 calcularCotizacion();
@@ -177,136 +295,169 @@ function mostrarPreview2D(url) {
 }
 
 // ==========================================
-// 4. ESTUDIO CREATIVO (GEMINI -> HUNYUAN3D)
+// 5. ESTUDIO CREATIVO (GEMINI BLINDADO -> HUNYUAN3D)
 // ==========================================
-
-// A. El cliente sube un logo o imagen propia
 document.getElementById('input-imagen-cliente')?.addEventListener('change', (e) => {
     const status = document.getElementById('status-ia');
+    const btnLimpiar = document.getElementById('btn-limpiar-img');
     if (e.target.files && e.target.files[0]) {
         blobImagenSubida = e.target.files[0];
-        blobImagenPreparada = blobImagenSubida; // Respaldo si decide pasar directo a 3D
+        blobImagenPreparada = blobImagenSubida;
         mostrarPreview2D(URL.createObjectURL(blobImagenSubida));
+        if (btnLimpiar) btnLimpiar.style.display = 'inline-block';
         if (status) {
-            status.textContent = '📎 Logo cargado. Pulsa "✨ Preparar Diseño 2D" para que Gemini lo adapte al producto elegido antes de pasarlo a 3D.';
+            status.textContent = '📎 Logo cargado. Pulsa "✨ Preparar Diseño 2D" para que Gemini lo adapte al producto.';
         }
     }
 });
 
-// B. Botón principal de Gemini (Funciona tanto para Texto->2D como para Imagen->Imagen preparada)
+document.getElementById('btn-limpiar-img')?.addEventListener('click', () => {
+    blobImagenSubida = null;
+    blobImagenPreparada = null;
+    const input = document.getElementById('input-imagen-cliente');
+    const img = document.getElementById('preview-2d');
+    const placeholder = document.getElementById('placeholder-2d');
+    const btnLimpiar = document.getElementById('btn-limpiar-img');
+    const btn3D = document.getElementById('btn-generar-3d');
+    const status = document.getElementById('status-ia');
+
+    if (input) input.value = '';
+    if (img) { img.src = ''; img.style.display = 'none'; }
+    if (placeholder) placeholder.style.display = 'block';
+    if (btnLimpiar) btnLimpiar.style.display = 'none';
+    if (btn3D) btn3D.style.display = 'none';
+    if (status) status.textContent = '';
+});
+
 document.getElementById('btn-generar-2d')?.addEventListener('click', async () => {
     const promptCliente = document.getElementById('prompt-ia').value.trim();
     const tipo = document.getElementById('tipo-producto').value;
     const contextoBase = CONTEXTOS_TALLER[tipo] || "";
     const btn = document.getElementById('btn-generar-2d');
-    const status = document.getElementById('status-ia');
 
     if (!blobImagenSubida && !promptCliente) {
         return alert('Describe tu idea en el cuadro de texto o sube tu logo primero.');
     }
 
     btn.disabled = true;
+    iniciarProgreso(18, "Preparando tu solicitud con Kawa IA...");
 
     try {
         if (blobImagenSubida) {
-            // MODO IMAGEN -> IMAGEN PREPARADA (Gemini adapta el logo al producto)
+            setHitoProgreso(35, "Adaptando tu logo al producto físico...", 18);
             blobImagenPreparada = await prepararImagenPara3D(
                 blobImagenSubida,
                 tipo,
                 contextoBase,
                 promptCliente,
-                (msg) => { status.textContent = '⏳ ' + msg; }
+                (msg) => setHitoProgreso(55, msg, 18)
             );
             mostrarPreview2D(URL.createObjectURL(blobImagenPreparada));
-            status.textContent = '✅ Logo adaptado y listo para 3D. Ahora pulsa "Convertir a Modelo 3D".';
+            finalizarProgreso(true, 'Logo adaptado y listo. Ahora puedes pulsar "🧊 Convertir a 3D".');
         } else {
-            // MODO TEXTO -> PROMPT PULIDO -> IMAGEN PREPARADA (Gemini)
-            status.textContent = '⏳ Gemini está puliendo tu diseño según las técnicas del taller...';
-            const promptPulido = await optimizarPromptConGemini(promptCliente, tipo, contextoBase);
+            const promptPulido = await optimizarPromptConGemini(
+                promptCliente,
+                tipo,
+                contextoBase,
+                (msg) => setHitoProgreso(28, msg, 18)
+            );
 
+            setHitoProgreso(50, "Renderizando boceto 2D en estudio...", 18);
             blobImagenPreparada = await generarImagen2D(
                 promptPulido,
-                (msg) => { status.textContent = '⏳ ' + msg; }
+                (msg) => setHitoProgreso(68, msg, 18)
             );
             mostrarPreview2D(URL.createObjectURL(blobImagenPreparada));
-            status.textContent = '✅ Boceto 2D preparado. Si te gusta, conviértelo a Modelo 3D.';
+            finalizarProgreso(true, 'Boceto 2D listo. Si te gusta, pulsa "🧊 Convertir a 3D".');
         }
     } catch (err) {
-        status.textContent = '❌ ' + err.message;
+        finalizarProgreso(false, err.message);
     } finally {
         btn.disabled = false;
     }
 });
 
-// C. Botón de conversión a 3D (Hunyuan3D-2.1)
 document.getElementById('btn-generar-3d')?.addEventListener('click', async () => {
     if (!blobImagenPreparada) return alert('Primero prepara un diseño 2D o sube un logo.');
 
     const tipo = document.getElementById('tipo-producto').value;
     const btn = document.getElementById('btn-generar-3d');
-    const status = document.getElementById('status-ia');
     const img2D = document.getElementById('preview-2d');
     const visor3D = document.getElementById('visor-3d');
 
     btn.disabled = true;
-    img2D.style.display = 'none';
-    visor3D.style.display = 'block';
+    iniciarProgreso(45, "Conectando con motor 3D (Hunyuan3D)...");
 
     try {
         const resultado = await generarModelo3D(
             blobImagenPreparada,
             tipo,
-            (msg) => { status.textContent = '⏳ ' + msg; }
+            (msg) => setHitoProgreso(45, msg, 45)
         );
         urlModeloGenerado = resultado.url;
+        img2D.style.display = 'none';
+        visor3D.style.display = 'block';
         visor3D.src = resultado.url;
-        status.textContent = '✅ Modelo 3D generado con éxito. Puedes rotarlo y acercarlo arriba.';
+        finalizarProgreso(true, 'Modelo 3D listo. Puedes rotarlo y hacer zoom arriba.');
     } catch (err) {
-        status.textContent = '❌ ' + err.message;
-        visor3D.style.display = 'none';
-        img2D.style.display = 'block';
+        finalizarProgreso(false, err.message);
     } finally {
         btn.disabled = false;
     }
 });
 
 // ==========================================
-// 5. CREAR PEDIDO Y MIS PEDIDOS (Supabase)
+// 6. GUARDAR BORRADOR / CONFIRMAR PEDIDO
 // ==========================================
-document.getElementById('btn-enviar-orden')?.addEventListener('click', async () => {
+async function registrarOrden(estadoInicial) {
     if (!usuarioActual) {
         abrirModalAuth();
         return;
     }
 
-    const btn = document.getElementById('btn-enviar-orden');
-    btn.disabled = true;
-    btn.textContent = 'Guardando Pedido...';
+    const btnConfirmar = document.getElementById('btn-enviar-orden');
+    const btnBorrador = document.getElementById('btn-guardar-borrador');
+    if (btnConfirmar) btnConfirmar.disabled = true;
+    if (btnBorrador) btnBorrador.disabled = true;
 
     try {
         const total = calcularCotizacion();
+        const tipo = document.getElementById('tipo-producto').value;
+        const cantidad = document.getElementById('input-cantidad')?.value || 1;
+        const ancho = document.getElementById('dim-ancho')?.value || '-';
+        const alto = document.getElementById('dim-alto')?.value || '-';
+        const notasCliente = document.getElementById('parametros-extra')?.value.trim() || '';
+        const resumenTecnico = `Cant: ${cantidad} | Medidas: ${ancho}x${alto}cm | ${notasCliente}`;
+
         const { data: orden, error } = await supabase.from('ordenes_trabajo')
             .insert([{
                 id_cliente: usuarioActual.id_cliente,
-                tipo_producto: document.getElementById('tipo-producto').value,
-                parametros_ia: document.getElementById('parametros-extra').value,
+                tipo_producto: tipo,
+                parametros_ia: resumenTecnico,
                 url_modelo_glb: urlModeloGenerado,
                 precio_total_usd: total,
-                estado: 'Presupuestada'
+                estado: estadoInicial
             }]).select().single();
 
         if (error) throw error;
 
-        alert(`✅ Pedido #${orden.id_orden} guardado.\nPuedes verlo en la pestaña "Mis Pedidos".`);
-        cargarMisPedidos();
+        const msg = estadoInicial === 'Borrador'
+            ? `💾 Cotización #${orden.id_orden} guardada en "Mis Pedidos" para cuando decidas concretarla.`
+            : `✅ ¡Pedido #${orden.id_orden} confirmado!\nAnticipo (50%): $${(total / 2).toFixed(2)} USD.`;
+
+        alert(msg);
+        await cargarMisPedidos();
         switchTab('pedidos');
     } catch (error) {
         alert('❌ Error al guardar: ' + error.message);
     } finally {
-        btn.disabled = false;
-        btn.textContent = 'Confirmar Pedido';
+        if (btnConfirmar) btnConfirmar.disabled = false;
+        if (btnBorrador) btnBorrador.disabled = false;
     }
-});
+}
+
+document.getElementById('btn-enviar-orden')?.addEventListener('click', () => registrarOrden('Presupuestada'));
+document.getElementById('btn-guardar-borrador')?.addEventListener('click', () => registrarOrden('Borrador'));
 
 async function cargarMisPedidos() {
     const contenedor = document.getElementById('lista-mis-pedidos');
@@ -316,26 +467,34 @@ async function cargarMisPedidos() {
         .select('*').eq('id_cliente', usuarioActual.id_cliente).order('id_orden', { ascending: false });
 
     if (error || !data || data.length === 0) {
-        contenedor.innerHTML = '<p style="color:var(--text-muted); text-align:center;">No tienes pedidos registrados aún.</p>';
+        contenedor.innerHTML = '<p style="color:var(--text-muted); text-align:center; margin-top: 30px;">No tienes pedidos ni cotizaciones guardadas aún.</p>';
         return;
     }
 
-    contenedor.innerHTML = data.map(o => `
-        <div class="pedido-item">
-            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                <strong>Orden #${o.id_orden}</strong>
-                <span class="badge">${o.estado}</span>
+    contenedor.innerHTML = data.map(o => {
+        const esBorrador = o.estado === 'Borrador';
+        const textoWa = encodeURIComponent(
+            `Hola KawaProyects3D, soy ${usuarioActual.nombre}. Quiero coordinar mi Orden #${o.id_orden} (${o.tipo_producto}) por $${o.precio_total_usd} USD. Detalles: ${o.parametros_ia || 'N/A'}`
+        );
+        return `
+            <div class="pedido-item">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <strong>Orden #${o.id_orden}</strong>
+                    <span class="badge ${esBorrador ? 'badge-borrador' : ''}">${o.estado}</span>
+                </div>
+                <div style="font-size: 0.84rem; color: var(--text-muted); line-height: 1.5;">
+                    Producto: <strong style="color:#fff;">${o.tipo_producto.replace('_', ' ').toUpperCase()}</strong><br>
+                    ${o.parametros_ia ? `Detalle: ${o.parametros_ia}<br>` : ''}
+                    Total: <strong style="color:var(--accent-glow);">$${o.precio_total_usd} USD</strong> (Anticipo: $${(o.precio_total_usd / 2).toFixed(2)})
+                </div>
+                <a class="btn-wa" href="https://wa.me/${WHATSAPP_TALLER}?text=${textoWa}" target="_blank">💬 Enviar por WhatsApp</a>
             </div>
-            <div style="font-size: 0.85rem; color: var(--text-muted);">
-                Producto: ${o.tipo_producto.toUpperCase()}<br>
-                Total: $${o.precio_total_usd} USD
-            </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 // ==========================================
-// 6. DASHBOARD DE TALLER (Admin)
+// 7. DASHBOARD DE TALLER (Admin)
 // ==========================================
 async function cargarDashboardTaller() {
     const { data: ordenes } = await supabase.from('ordenes_trabajo')
